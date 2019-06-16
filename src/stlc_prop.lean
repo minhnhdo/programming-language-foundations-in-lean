@@ -93,18 +93,47 @@ begin
     },
 end
 
-lemma free_in_context {x t T gamma}
-  (afi : appears_free_in x t) (ht : has_type gamma t T) :
-  ∃T', gamma x = some T' :=
+lemma free_in_context {x t} (afi : appears_free_in x t) :
+  ∀{gamma T}, has_type gamma t T -> ∃T', gamma x = some T' :=
 begin
   induction afi,
     case appears_free_in.afi_var: {
-      cases ht with _ _ _ h,
-      existsi _,
-      exact h,
-    },
-    case appears_free_in.afi_abs: y t T hne afi_t ih ht {
-      apply ih,
+      intros gamma T ht,
       cases ht,
+      existsi T,
+      exact ht_a,
+    },
+    case appears_free_in.afi_abs: _ _ _ hne _ ih {
+      intros gamma T ht,
+      cases ht with,
+      rcases ih ht_a with ⟨T', h'⟩,
+      existsi T',
+      rewrite partial_map.update_neq hne at h',
+      exact h',
+    },
+    case appears_free_in.afi_app1: _ _ _ ih {
+      intros gamma T ht,
+      cases ht,
+      exact ih ht_a,
+    },
+    case appears_free_in.afi_app2: _ _ _ ih {
+      intros gamma T ht,
+      cases ht,
+      exact ih ht_a_1,
+    },
+    case appears_free_in.afi_tst1: _ _ _ _ ih {
+      intros gamma T ht,
+      cases ht,
+      exact ih ht_a,
+    },
+    case appears_free_in.afi_tst2: _ _ _ _ ih {
+      intros gamma T ht,
+      cases ht,
+      exact ih ht_a_1,
+    },
+    case appears_free_in.afi_tst3: _ _ _ _ ih {
+      intros gamma T ht,
+      cases ht,
+      exact ih ht_a_2,
     },
 end
