@@ -137,3 +137,49 @@ begin
       exact ih ht_a_2,
     },
 end
+
+lemma typable_empty__closed {t T} : has_type context.empty t T -> closed t :=
+begin
+  intros ht x afi,
+  rcases free_in_context afi ht with ⟨_, h⟩,
+  cases h,
+end
+
+lemma context_invariance {gamma t T} (ht : has_type gamma t T) :
+  ∀{gamma' : context},
+  (∀{x}, appears_free_in x t -> gamma x = gamma' x) -> has_type gamma' t T :=
+begin
+  induction ht,
+    case has_type.t_var: _ x _ h {
+      intros _ f,
+      apply t_var,
+      rewrite <-f (afi_var x),
+      exact h,
+    },
+    case has_type.t_abs: _ x T₁ _ _ _ ih {
+      intros gamma' f,
+      apply t_abs,
+      apply @ih (partial_map.update x T₁ gamma'),
+      intros y afi,
+      by_cases h : x = y,
+      repeat {
+        simp [h, partial_map.update, total_map.update];
+        exact f (afi_abs h afi)
+      },
+    },
+    case has_type.t_app: _ _ _ _ _ _ _ ih₁ ih₂ {
+      intros _ f,
+      apply t_app,
+        { apply ih₁, intros x afi₁, apply @f x, exact afi_app1 afi₁ },
+        { apply ih₂, intros x afi₂, apply @f x, exact afi_app2 afi₂ },
+    },
+    case has_type.t_tru: { intros x f, apply t_tru },
+    case has_type.t_fls: { intros x f, apply t_fls },
+    case has_type.t_tst: gamma _ _ _ _ _ _ _ ih₁ ih₂ ih₃ {
+      intros _ f,
+      apply t_tst,
+        { apply ih₁, intros x afi₁, apply @f x, exact afi_tst1 afi₁ },
+        { apply ih₂, intros x afi₂, apply @f x, exact afi_tst2 afi₂ },
+        { apply ih₃, intros x afi₃, apply @f x, exact afi_tst3 afi₃ },
+    },
+end
