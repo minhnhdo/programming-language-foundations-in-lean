@@ -1,6 +1,7 @@
 import tactic
 import .stlc
 
+open appears_free_in
 open has_type
 open step
 open tm
@@ -89,5 +90,21 @@ begin
           existsi _,
           exact st_tst s₁,
         end,
+    },
+end
+
+lemma free_in_context {x t T gamma}
+  (afi : appears_free_in x t) (ht : has_type gamma t T) :
+  ∃T', gamma x = some T' :=
+begin
+  induction afi,
+    case appears_free_in.afi_var: {
+      cases ht with _ _ _ h,
+      existsi _,
+      exact h,
+    },
+    case appears_free_in.afi_abs: y t T hne afi_t ih ht {
+      apply ih,
+      cases ht,
     },
 end

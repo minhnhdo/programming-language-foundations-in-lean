@@ -9,8 +9,8 @@ open ty
 
 inductive tm : Type
 | var : string -> tm
-| app : tm -> tm -> tm
 | abs : string -> ty -> tm -> tm
+| app : tm -> tm -> tm
 | tru : tm
 | fls : tm
 | tst : tm -> tm -> tm -> tm
@@ -213,7 +213,18 @@ begin
     end,
 end
 
-example : ¬(∃s t, has_type context.empty (abs x s (app (var x) (var x))) t) :=
+example : ¬∃s t, has_type context.empty (abs x s (app (var x) (var x))) t :=
 assume ⟨ _, _, t_abs (t_app (t_var h₁) (t_var h₂)) ⟩,
 have h : some (arrow _ _) = some _, from eq.trans (eq.symm h₁) h₂,
 option.no_confusion h (assume h', arrow_no_confusion h')
+
+inductive appears_free_in (x : string) : tm -> Prop
+| afi_var : appears_free_in (var x)
+| afi_abs {y t T} : y ≠ x -> appears_free_in t -> appears_free_in (abs y T t)
+| afi_app1 {t₁ t₂} : appears_free_in t₁ -> appears_free_in (app t₁ t₂)
+| afi_app2 {t₁ t₂} : appears_free_in t₂ -> appears_free_in (app t₁ t₂)
+| afi_tst1 {t₁ t₂ t₃} : appears_free_in t₁ -> appears_free_in (tst t₁ t₂ t₃)
+| afi_tst2 {t₁ t₂ t₃} : appears_free_in t₂ -> appears_free_in (tst t₁ t₂ t₃)
+| afi_tst3 {t₁ t₂ t₃} : appears_free_in t₃ -> appears_free_in (tst t₁ t₂ t₃)
+
+def closed (t : tm) := ∀x, ¬appears_free_in x t
