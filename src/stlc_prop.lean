@@ -189,7 +189,7 @@ lemma substitution_preserves_typing {x U v} :
   has_type (partial_map.update x U gamma) t T -> has_type context.empty v U ->
   has_type gamma ([x:=v]t) T :=
 begin
-  intros t,
+  intro t,
   induction t,
     case tm.var: y {
       intros _ _ ht_t ht_v,
