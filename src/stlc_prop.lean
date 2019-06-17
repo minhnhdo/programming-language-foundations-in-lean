@@ -287,3 +287,60 @@ begin
       exact t_tst (ih₁ ht_t_a ht_v) (ih₂ ht_t_a_1 ht_v) (ih₃ ht_t_a_2 ht_v),
     },
 end
+
+theorem preservation {t T} :
+  has_type context.empty t T -> ∀{t'}, (t -+> t') -> has_type context.empty t' T :=
+begin
+  generalize h : context.empty = gamma,
+  intro ht,
+  induction ht,
+    case has_type.t_var: { intros _ s, cases s },
+    case has_type.t_abs: { intros _ s, cases s },
+    case has_type.t_app: _ _ _ _ _ ht₁ ht₂ ih₁ ih₂  {
+      intros _ s,
+      cases s,
+        case step.st_appabs: {
+          rewrite <-h at ht₁,
+          cases ht₁,
+          rewrite <-h at ht₂,
+          simp [symm h],
+          exact substitution_preserves_typing ht₁_a ht₂,
+        },
+        case step.st_app1: { exact t_app (ih₁ h s_a) ht₂ },
+        case step.st_app2: { exact t_app ht₁ (ih₂ h s_a_1) },
+    },
+    case has_type.t_tru: { intros _ s, cases s },
+    case has_type.t_fls: { intros _ s, cases s },
+    case has_type.t_tst: _ _ _ _ _ ht₁ ht₂ ht₃ ih₁ ih₂ ih₃ {
+      intros _ s,
+      cases s,
+        case step.st_tsttru: { exact ht₂ },
+        case step.st_tstfls: { exact ht₃ },
+        case step.st_tst: { exact t_tst (ih₁ h s_a) ht₂ ht₃ },
+    },
+end
+
+lemma subject_expansion :
+  ∃t t' T,
+  (t -+> t') -> has_type context.empty t' T -> ¬has_type context.empty t T :=
+begin
+  existsi tru,
+  existsi fls,
+  existsi ty.bool,
+  intro s,
+  cases s,
+end
+
+lemma soundness {t t' T} (ht : has_type context.empty t T) (ss : t -+>* t') :
+  ¬stuck t' :=
+begin
+  intros stck,
+  induction ss,
+    case multi.multi_refl: {
+      rcases stck with ⟨nf,  nv⟩,
+      rcases progress ht with v | st,
+        { exact nv v },
+        { exact nf st },
+    },
+    case multi.multi_step: _ _ _ s _ ih { exact ih (preservation ht s) stck },
+end

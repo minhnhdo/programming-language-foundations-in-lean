@@ -6,3 +6,5 @@ def deterministic {t : Type} (r : relation t) :=
 inductive multi {t : Type} {r : relation t} : relation t
 | multi_refl : ∀{x : t}, multi x x
 | multi_step : ∀{x y z : t}, r x y -> multi y z -> multi x z
+
+def normal_form {T} (R : relation T) (t : T) := ¬∃t', R t t'

@@ -228,3 +228,5 @@ inductive appears_free_in (x : string) : tm -> Prop
 | afi_tst3 {t₁ t₂ t₃} : appears_free_in t₃ -> appears_free_in (tst t₁ t₂ t₃)
 
 def closed (t : tm) := ∀x, ¬appears_free_in x t
+
+def stuck (t : tm) := normal_form step t ∧ ¬value t
