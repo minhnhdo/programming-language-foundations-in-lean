@@ -93,6 +93,39 @@ begin
     },
 end
 
+theorem progress' :
+  ∀{t T}, has_type context.empty t T -> value t ∨ ∃t', t -+> t' :=
+begin
+  intro t,
+  induction t,
+    case tm.var: { intros _ ht, cases ht, cases ht_a },
+    case tm.abs: { intros, left, constructor },
+    case tm.app: _ _ ih₁ ih₂ {
+      intros _ ht,
+      cases ht,
+      rcases ih₁ ht_a with v₁ | ⟨_, s₁⟩,
+        { rcases ih₂ ht_a_1 with v₂ | ⟨_, s₂⟩,
+            { rcases cannonical_forms_fun ht_a v₁ with ⟨_, _, _, h⟩,
+              rewrite h,
+              right,
+              existsi _,
+              exact st_appabs v₂ },
+            { right, existsi _, exact st_app2 v₁ s₂ } },
+        { right, existsi _, exact st_app1 s₁ },
+    },
+    case tm.tru: { intros, left, constructor },
+    case tm.fls: { intros, left, constructor },
+    case tm.tst: _ _ _ ih₁ ih₂ ih₃ {
+      intros _ ht,
+      cases ht,
+      rcases ih₁ ht_a with v₁ | ⟨_, s₁⟩,
+        { cases cannonical_forms_bool ht_a v₁ with h_tru h_fls,
+            { rewrite h_tru, right, existsi _, exact st_tsttru },
+            { rewrite h_fls, right, existsi _, exact st_tstfls } },
+        { right, existsi _, apply st_tst s₁ },
+    },
+end
+
 lemma free_in_context {x t} (afi : appears_free_in x t) :
   ∀{gamma T}, has_type gamma t T -> ∃T', gamma x = some T' :=
 begin
