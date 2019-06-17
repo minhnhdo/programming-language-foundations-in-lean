@@ -183,3 +183,74 @@ begin
         { apply ih₃, intros x afi₃, apply @f x, exact afi_tst3 afi₃ },
     },
 end
+
+lemma substitution_preserves_typing {x U v} :
+  ∀{t T gamma},
+  has_type (partial_map.update x U gamma) t T -> has_type context.empty v U ->
+  has_type gamma ([x:=v]t) T :=
+begin
+  intros t,
+  induction t,
+    case tm.var: y {
+      intros _ _ ht_t ht_v,
+      by_cases h : x = y,
+        begin
+          rewrite h at ht_t,
+          cases ht_t,
+          simp at ht_t_a,
+          simp [h, ht_t_a, subst],
+          rewrite ht_t_a at ht_v,
+          apply context_invariance ht_v,
+          intros z afi,
+          apply false.elim,
+          exact typable_empty__closed ht_v z afi,
+        end,
+        begin
+          cases ht_t,
+          simp [h] at ht_t_a,
+          simp [h, subst],
+          exact t_var ht_t_a,
+        end,
+    },
+    case tm.abs: y T' t ih {
+      intros T gamma ht_t ht_v,
+      by_cases h : x = y,
+        begin
+          rewrite h at ht_t,
+          cases ht_t,
+          have ht' : has_type (partial_map.update y T' $
+                              partial_map.update y U gamma)
+                             t
+                             ht_t_T₁₂,
+          from ht_t_a,
+          rewrite partial_map.update_shadow at ht',
+          simp [h, subst],
+          exact t_abs ht',
+        end,
+        begin
+          cases ht_t,
+          have ht' : has_type (partial_map.update y T' $
+                               partial_map.update x U gamma)
+                              t
+                              ht_t_T₁₂,
+          from ht_t_a,
+          rewrite partial_map.update_permute (ne.symm h) at ht',
+          simp [h, subst],
+          exact t_abs (ih ht' ht_v),
+        end,
+    },
+    case tm.app: _ _ ih₁ ih₂ {
+      intros _ _ ht_t ht_v,
+      cases ht_t,
+      simp [subst],
+      exact t_app (ih₁ ht_t_a ht_v) (ih₂ ht_t_a_1 ht_v),
+    },
+    case tm.tru: { intros _ _ ht_t _, cases ht_t, simp [subst], exact t_tru },
+    case tm.fls: { intros _ _ ht_t _, cases ht_t, simp [subst], exact t_fls },
+    case tm.tst: t₁ t₂ t₃ ih₁ ih₂ ih₃ {
+      intros _ _ ht_t ht_v,
+      cases ht_t,
+      simp [subst],
+      exact t_tst (ih₁ ht_t_a ht_v) (ih₂ ht_t_a_1 ht_v) (ih₃ ht_t_a_2 ht_v),
+    },
+end
