@@ -344,3 +344,36 @@ begin
     },
     case multi.multi_step: _ _ _ s _ ih { exact ih (preservation ht s) stck },
 end
+
+theorem unique_types :
+  ∀{gamma e T}, has_type gamma e T -> ∀{T'}, has_type gamma e T' -> T = T' :=
+begin
+  intros _ _ _ ht,
+  induction ht,
+    case has_type.t_var: _ _ _ h {
+      intros _ ht',
+      cases ht',
+      rewrite h at ht'_a,
+      injection ht'_a,
+    },
+    case has_type.t_abs: _ _ _ _ _ _ ih {
+      intros _ ht',
+      cases ht',
+      apply congr_arg,
+      exact ih ht'_a,
+    },
+    case has_type.t_app: _ _ _ _ _ _ _ ih₁ ih₂ {
+      intros _ ht',
+      cases ht',
+      let h := ih₁ ht'_a,
+      rewrite ih₂ ht'_a_1 at h,
+      injection h,
+    },
+    case has_type.t_tru: { intros _ ht', cases ht', reflexivity },
+    case has_type.t_fls: { intros _ ht', cases ht', reflexivity },
+    case has_type.t_tst: _ _ _ _ _ _ _ _ _ ih₂ {
+      intros _ ht',
+      cases ht',
+      exact ih₂ ht'_a_1,
+    },
+end
