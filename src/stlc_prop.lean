@@ -337,7 +337,7 @@ begin
   intros stck,
   induction ss,
     case multi.multi_refl: {
-      rcases stck with ⟨nf,  nv⟩,
+      rcases stck with ⟨nf, nv⟩,
       rcases progress ht with v | st,
         { exact nv v },
         { exact nf st },
