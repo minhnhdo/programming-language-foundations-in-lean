@@ -7,12 +7,6 @@ open step
 open tm
 open ty
 
-lemma abs_not_has_type_bool {gamma x T t} : ¬(has_type gamma (abs x T t) bool).
-
-lemma tru_not_has_type_arrow {gamma T₁ T₂} : ¬(has_type gamma tru (arrow T₁ T₂)).
-
-lemma fls_not_has_type_arrow {gamma T₁ T₂} : ¬(has_type gamma fls (arrow T₁ T₂)).
-
 lemma cannonical_forms_bool {t}
   (ht : has_type context.empty t bool) (v : value t) :
   t = tru ∨ t = fls :=
@@ -40,20 +34,6 @@ begin
     case value.v_fls: { cases ht },
 end
 
-lemma empty_context_neq_some {x T} : context.empty x ≠ some T.
-
-lemma var_not_has_type_empty_context {x T} : ¬(has_type context.empty (var x) T)
-| (t_var h) := false.elim (empty_context_neq_some h)
-
-lemma app_has_type {gamma t₁ t₂ T₂} :
-  has_type gamma (app t₁ t₂) T₂ ->
-  ∃T₁, has_type gamma t₁ (arrow T₁ T₂) ∧ has_type gamma t₂ T₁
-| (@t_app _ T₁ _ _ _ ht₁ ht₂) := ⟨T₁, ht₁, ht₂⟩
-
-lemma tst_has_type {gamma t₁ t₂ t₃ T} :
-  has_type gamma (tst t₁ t₂ t₃) T ->
-  has_type gamma t₁ bool ∧ has_type gamma t₂ T ∧ has_type gamma t₃ T
-| (t_tst ht₁ ht₂ ht₃) := ⟨ht₁, ht₂, ht₃⟩
 lemma cannonical_forms_nat {t}
   (ht : has_type context.empty t nat) (v : value t) :
   ∃n, t = const n :=
