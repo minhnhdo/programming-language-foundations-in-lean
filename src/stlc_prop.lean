@@ -6,7 +6,6 @@ open has_type
 open step
 open tm
 open ty
-open value
 
 lemma abs_not_has_type_bool {gamma x T t} : ¬(has_type gamma (abs x T t) bool).
 
@@ -18,25 +17,27 @@ lemma cannonical_forms_bool {t}
   (ht : has_type context.empty t bool) (v : value t) :
   t = tru ∨ t = fls :=
 begin
-  induction v,
-    case v_abs: { exact false.elim (abs_not_has_type_bool ht) },
-    case v_tru: { left, constructor },
-    case v_fls: { right, constructor },
+  cases v,
+    case value.v_abs: { cases ht },
+    case value.v_const: { cases ht },
+    case value.v_tru: { left, constructor },
+    case value.v_fls: { right, constructor },
 end
 
 lemma cannonical_forms_fun {t T₁ T₂}
   (ht : has_type context.empty t (arrow T₁ T₂)) (v : value t) :
   ∃x T u, t = abs x T u :=
 begin
-  induction v,
-    case v_abs : x T t {
+  cases v,
+    case value.v_abs : x T t {
       existsi x,
       existsi T,
       existsi t,
       reflexivity,
     },
-    case v_tru : { exact false.elim (tru_not_has_type_arrow ht) },
-    case v_fls : { exact false.elim (fls_not_has_type_arrow ht) },
+    case value.v_const: { cases ht },
+    case value.v_tru: { cases ht },
+    case value.v_fls: { cases ht },
 end
 
 lemma empty_context_neq_some {x T} : context.empty x ≠ some T.
@@ -53,6 +54,16 @@ lemma tst_has_type {gamma t₁ t₂ t₃ T} :
   has_type gamma (tst t₁ t₂ t₃) T ->
   has_type gamma t₁ bool ∧ has_type gamma t₂ T ∧ has_type gamma t₃ T
 | (t_tst ht₁ ht₂ ht₃) := ⟨ht₁, ht₂, ht₃⟩
+lemma cannonical_forms_nat {t}
+  (ht : has_type context.empty t nat) (v : value t) :
+  ∃n, t = const n :=
+begin
+  cases v,
+    case value.v_abs: { cases ht },
+    case value.v_const: { existsi _, reflexivity },
+    case value.v_tru: { cases ht },
+    case value.v_fls: { cases ht },
+end
 
 theorem progress {t T} :
   has_type context.empty t T -> value t ∨ ∃t', t -+> t' :=
