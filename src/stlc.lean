@@ -4,6 +4,7 @@ import .maps
 inductive ty : Type
 | bool : ty
 | arrow : ty -> ty -> ty
+| nat : ty
 
 open ty
 
@@ -11,6 +12,11 @@ inductive tm : Type
 | var : string -> tm
 | abs : string -> ty -> tm -> tm
 | app : tm -> tm -> tm
+| const : ℕ -> tm
+| prd : tm -> tm
+| scc : tm -> tm
+| mlt : tm -> tm -> tm
+| iszro : tm -> tm
 | tru : tm
 | fls : tm
 | tst : tm -> tm -> tm -> tm
@@ -28,7 +34,8 @@ def k := abs x bool (abs y bool (var x))
 def notB := abs x bool (tst (var x) fls tru)
 
 inductive value : tm -> Prop
-| v_abs : ∀{x T t}, value (abs x T t)
+| v_abs {x T t} : value (abs x T t)
+| v_nat {n} : value (const n)
 | v_tru : value tru
 | v_fls : value fls
 
@@ -38,6 +45,11 @@ def subst (x : string) (s : tm) : tm -> tm
 | (var y) := if x = y then s else var y
 | (abs y T t1) := abs y T (if x = y then t1 else subst t1)
 | (app t1 t2) := app (subst t1) (subst t2)
+| (const n) := const n
+| (prd t) := prd (subst t)
+| (scc t) := scc (subst t)
+| (mlt t₁ t₂) := mlt (subst t₁) (subst t₂)
+| (iszro t) := iszro (subst t)
 | tru := tru
 | fls := fls
 | (tst t1 t2 t3) := tst (subst t1) (subst t2) (subst t3)
@@ -52,6 +64,12 @@ inductive substi (s : tm) (x : string) : tm -> tm -> Prop
     y ≠ x -> substi t t' -> substi (abs y T t) (abs y T t')
 | s_app {t1 t1' t2 t2' : tm} :
     substi t1 t1' -> substi t2 t2' -> substi (app t1 t2) (app t1' t2')
+| s_const {n} : substi (const n) (const n)
+| s_prd {t t'} : substi t t' -> substi (prd t) (prd t')
+| s_scc {t t'} : substi t t' -> substi (scc t) (scc t')
+| s_mlt {t₁ t₁' t₂ t₂'} :
+    substi t₁ t₁' -> substi t₂ t₂' -> substi (mlt t₁ t₂) (mlt t₁' t₂')
+| s_iszro {t t'} : substi t t' -> substi (iszro t) (iszro t')
 | s_tru : substi tru tru
 | s_fls : substi fls fls
 | s_tst {t1 t1' t2 t2' t3 t3' : tm} :
@@ -66,29 +84,30 @@ begin
     intro prf,
     induction prf,
     induction t,
-    case tm.var: y
-    begin
-      unfold subst,
-      cases decidable.em (x = y) with heq hne,
-      { simp [heq], apply substi.s_var1 },
-      { simp [hne], apply substi.s_var2, exact ne.symm hne },
-    end,
-    case tm.app: { apply substi.s_app, repeat { assumption } },
-    case tm.abs: y T t
-    begin
-      unfold subst,
-      cases decidable.em (x = y) with heq hne,
-      { simp [heq], apply substi.s_abs1 },
-      begin
-        simp [hne],
-        apply substi.s_abs2,
-        exact ne.symm hne,
-        assumption,
-      end,
-    end,
-    case tm.tru: { apply substi.s_tru },
-    case tm.fls: { apply substi.s_fls },
-    case tm.tst: { apply substi.s_tst, repeat { assumption } },
+      case tm.var: y {
+        unfold subst,
+        cases decidable.em (x = y) with heq hne,
+          { simp [heq], apply substi.s_var1 },
+          { simp [hne], apply substi.s_var2, exact ne.symm hne },
+      },
+      case tm.app: { apply substi.s_app, repeat { assumption } },
+      case tm.abs: y {
+        unfold subst,
+        cases decidable.em (x = y) with heq hne,
+          { simp [heq], apply substi.s_abs1 },
+          { simp [hne],
+            apply substi.s_abs2,
+            exact ne.symm hne,
+            assumption, },
+      },
+      case tm.const: { apply substi.s_const },
+      case tm.prd: { apply substi.s_prd, assumption },
+      case tm.scc: { apply substi.s_scc, assumption },
+      case tm.iszro: { apply substi.s_iszro, assumption },
+      case tm.mlt: { apply substi.s_mlt, repeat { assumption } },
+      case tm.tru: { apply substi.s_tru },
+      case tm.fls: { apply substi.s_fls },
+      case tm.tst: { apply substi.s_tst, repeat { assumption } },
   end,
   begin
     intro sub,
