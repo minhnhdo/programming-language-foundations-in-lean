@@ -117,12 +117,20 @@ begin
 end
 
 inductive step : tm -> tm -> Prop
-| st_appabs : ∀{x T t12 v2}, value v2 -> step (app (abs x T t12) v2) ([x:=v2]t12)
-| st_app1 : ∀{t1 t1' t2}, step t1 t1' -> step (app t1 t2) (app t1' t2)
-| st_app2 : ∀{v1 t2 t2'}, value v1 -> step t2 t2' -> step (app v1 t2) (app v1 t2')
-| st_tsttru : ∀{t2 t3}, step (tst tru t2 t3) t2
-| st_tstfls : ∀{t2 t3}, step (tst fls t2 t3) t3
-| st_tst : ∀{t1 t1' t2 t3}, step t1 t1' -> step (tst t1 t2 t3) (tst t1' t2 t3)
+| st_appabs {x T t12 v2} : value v2 -> step (app (abs x T t12) v2) ([x:=v2]t12)
+| st_app1 {t1 t1' t2} : step t1 t1' -> step (app t1 t2) (app t1' t2)
+| st_app2 {v1 t2 t2'} : value v1 -> step t2 t2' -> step (app v1 t2) (app v1 t2')
+| st_prdzro : step (prd (const 0)) (const 0)
+| st_prdnzr {n} : step (prd (const (nat.succ n))) (const n)
+| st_prd {t t'} : step t t' -> step (prd t) (prd t')
+| st_sccn {n} : step (scc (const n)) (const (nat.succ n))
+| st_scc {t t'} : step t t' -> step (scc t) (scc t')
+| st_iszrozro : step (iszro (const 0)) tru
+| st_iszronzr {n} : step (iszro (const (nat.succ n))) fls
+| st_iszro {t t'} : step t t' -> step (iszro t) (iszro t')
+| st_tsttru {t2 t3} : step (tst tru t2 t3) t2
+| st_tstfls {t2 t3} : step (tst fls t2 t3) t3
+| st_tst {t1 t1' t2 t3} : step t1 t1' -> step (tst t1 t2 t3) (tst t1' t2 t3)
 
 open step
 
@@ -173,6 +181,10 @@ inductive has_type : context -> tm -> ty -> Prop
     has_type gamma t₁ (arrow T₁₁ T₁₂) ->
     has_type gamma t₂ T₁₁ ->
     has_type gamma (app t₁ t₂) T₁₂
+| t_const {gamma n} : has_type gamma (const n) nat
+| t_prd {gamma t} : has_type gamma t nat -> has_type gamma (prd t) nat
+| t_scc {gamma t} : has_type gamma t nat -> has_type gamma (scc t) nat
+| t_iszro {gamma t} : has_type gamma t nat -> has_type gamma (iszro t) bool
 | t_tru {gamma} : has_type gamma tru bool
 | t_fls {gamma} : has_type gamma fls bool
 | t_tst {gamma T t₁ t₂ t₃} :
@@ -193,8 +205,12 @@ end
 meta def auto_typing : tactic unit :=
 tactic.repeat (   tactic.applyc ``t_tru
               <|> tactic.applyc ``t_fls
+              <|> tactic.applyc ``t_const
               <|> (tactic.applyc ``t_var >> tactic.reflexivity)
               <|> tactic.applyc ``t_abs
+              <|> tactic.applyc ``t_prd
+              <|> tactic.applyc ``t_scc
+              <|> tactic.applyc ``t_iszro
               <|> tactic.applyc ``t_tst )
 
 example : has_type context.empty (abs x bool (var x)) (arrow bool bool) :=
@@ -242,6 +258,9 @@ inductive appears_free_in (x : string) : tm -> Prop
 | afi_abs {y t T} : y ≠ x -> appears_free_in t -> appears_free_in (abs y T t)
 | afi_app1 {t₁ t₂} : appears_free_in t₁ -> appears_free_in (app t₁ t₂)
 | afi_app2 {t₁ t₂} : appears_free_in t₂ -> appears_free_in (app t₁ t₂)
+| afi_prd {t} : appears_free_in t -> appears_free_in (prd t)
+| afi_scc {t} : appears_free_in t -> appears_free_in (scc t)
+| afi_iszro {t} : appears_free_in t -> appears_free_in (iszro t)
 | afi_tst1 {t₁ t₂ t₃} : appears_free_in t₁ -> appears_free_in (tst t₁ t₂ t₃)
 | afi_tst2 {t₁ t₂ t₃} : appears_free_in t₂ -> appears_free_in (tst t₁ t₂ t₃)
 | afi_tst3 {t₁ t₂ t₃} : appears_free_in t₃ -> appears_free_in (tst t₁ t₂ t₃)
