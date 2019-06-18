@@ -80,8 +80,7 @@ theorem substi_correct : ∀ x s t t', ([x:=s]t) = t' ↔ substi s x t t' :=
 begin
   intros,
   apply iff.intro,
-  begin
-    intro prf,
+  { intro prf,
     induction prf,
     induction t,
       case tm.var: y {
@@ -107,13 +106,10 @@ begin
       case tm.mlt: { apply substi.s_mlt, repeat { assumption } },
       case tm.tru: { apply substi.s_tru },
       case tm.fls: { apply substi.s_fls },
-      case tm.tst: { apply substi.s_tst, repeat { assumption } },
-  end,
-  begin
-    intro sub,
+      case tm.tst: { apply substi.s_tst, repeat { assumption } } },
+  { intro sub,
     induction sub,
-    repeat { simp [*, subst]; /- s_var2 and s_abs2 -/ simp [ne.symm sub_a] },
-  end,
+    repeat { simp [*, subst]; /- s_var2 and s_abs2 -/ simp [ne.symm sub_a] } },
 end
 
 inductive step : tm -> tm -> Prop
@@ -204,11 +200,7 @@ inductive has_type : context -> tm -> ty -> Prop
 open has_type
 
 example : has_type context.empty (abs x bool (var x)) (arrow bool bool) :=
-begin
-  apply t_abs,
-  apply t_var,
-  reflexivity,
-end
+t_abs (t_var rfl)
 
 meta def auto_typing : tactic unit :=
 tactic.repeat (   tactic.applyc ``t_tru
@@ -246,14 +238,14 @@ lemma arrow_no_confusion {t₁ t₂} : arrow t₁ t₂ ≠ t₁ :=
 assume h : arrow t₁ t₂ = t₁,
 begin
   induction t₁,
-    case ty.bool: { cases h },
-    case ty.arrow: t₃ t₄ ih₁ ih₂ {
+    case ty.arrow: _ _ ih₁ ih₂ {
       apply ih₁,
       injection h with h' h'',
       rewrite h'',
       exact h',
     },
-    case ty.nat: { cases h },
+    /- ty.bool, ty.nat -/
+    repeat { cases h },
 end
 
 example : ¬∃s t, has_type context.empty (abs x s (app (var x) (var x))) t :=
