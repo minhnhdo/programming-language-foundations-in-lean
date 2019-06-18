@@ -35,7 +35,7 @@ def notB := abs x bool (tst (var x) fls tru)
 
 inductive value : tm -> Prop
 | v_abs {x T t} : value (abs x T t)
-| v_nat {n} : value (const n)
+| v_const {n} : value (const n)
 | v_tru : value tru
 | v_fls : value fls
 
