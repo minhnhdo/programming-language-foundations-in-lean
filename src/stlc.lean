@@ -125,6 +125,10 @@ inductive step : tm -> tm -> Prop
 | st_prd {t t'} : step t t' -> step (prd t) (prd t')
 | st_sccn {n} : step (scc (const n)) (const (nat.succ n))
 | st_scc {t t'} : step t t' -> step (scc t) (scc t')
+| st_mlt1 {t₁ t₁' t₂} : step t₁ t₁' -> step (mlt t₁ t₂) (mlt t₁' t₂)
+| st_mlt2 {t₁ t₂ t₂'} :
+    value t₁ -> step t₂ t₂' -> step (mlt t₁ t₂) (mlt t₁ t₂')
+| st_mltnm {n m} : step (mlt (const n) (const m)) (const (n * m))
 | st_iszrozro : step (iszro (const 0)) tru
 | st_iszronzr {n} : step (iszro (const (nat.succ n))) fls
 | st_iszro {t t'} : step t t' -> step (iszro t) (iszro t')
@@ -184,6 +188,10 @@ inductive has_type : context -> tm -> ty -> Prop
 | t_const {gamma n} : has_type gamma (const n) nat
 | t_prd {gamma t} : has_type gamma t nat -> has_type gamma (prd t) nat
 | t_scc {gamma t} : has_type gamma t nat -> has_type gamma (scc t) nat
+| t_mlt {gamma t₁ t₂} :
+    has_type gamma t₁ nat ->
+    has_type gamma t₂ nat ->
+    has_type gamma (mlt t₁ t₂) nat
 | t_iszro {gamma t} : has_type gamma t nat -> has_type gamma (iszro t) bool
 | t_tru {gamma} : has_type gamma tru bool
 | t_fls {gamma} : has_type gamma fls bool
@@ -260,6 +268,8 @@ inductive appears_free_in (x : string) : tm -> Prop
 | afi_app2 {t₁ t₂} : appears_free_in t₂ -> appears_free_in (app t₁ t₂)
 | afi_prd {t} : appears_free_in t -> appears_free_in (prd t)
 | afi_scc {t} : appears_free_in t -> appears_free_in (scc t)
+| afi_mlt1 {t₁ t₂} : appears_free_in t₁ -> appears_free_in (mlt t₁ t₂)
+| afi_mlt2 {t₁ t₂} : appears_free_in t₂ -> appears_free_in (mlt t₁ t₂)
 | afi_iszro {t} : appears_free_in t -> appears_free_in (iszro t)
 | afi_tst1 {t₁ t₂ t₃} : appears_free_in t₁ -> appears_free_in (tst t₁ t₂ t₃)
 | afi_tst2 {t₁ t₂ t₃} : appears_free_in t₂ -> appears_free_in (tst t₁ t₂ t₃)
