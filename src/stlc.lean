@@ -238,14 +238,14 @@ lemma arrow_no_confusion {t₁ t₂} : arrow t₁ t₂ ≠ t₁ :=
 assume h : arrow t₁ t₂ = t₁,
 begin
   induction t₁,
-    case ty.bool: { apply @ty.no_confusion false _ _ h },
-    case ty.arrow: t₃ t₄ ih₁ ih₂
-    begin
+    case ty.bool: { cases h },
+    case ty.arrow: t₃ t₄ ih₁ ih₂ {
       apply ih₁,
       injection h with h' h'',
       rewrite h'',
       exact h',
-    end,
+    },
+    case ty.nat: { cases h },
 end
 
 example : ¬∃s t, has_type context.empty (abs x s (app (var x) (var x))) t :=
