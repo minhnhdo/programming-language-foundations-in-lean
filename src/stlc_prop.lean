@@ -1,48 +1,35 @@
 import tactic
 import .stlc
 
-open appears_free_in
-open has_type
-open step
-open tm
-open ty
-
 lemma cannonical_forms_bool {t}
-  (ht : has_type context.empty t bool) (v : value t) :
-  t = tru ∨ t = fls :=
+  (ht : has_type context.empty t ty.bool) (v : value t) :
+  t = tm.tru ∨ t = tm.fls :=
 begin
   cases v,
-    case value.v_abs: { cases ht },
-    case value.v_const: { cases ht },
     case value.v_tru: { left, constructor },
     case value.v_fls: { right, constructor },
+    /- value.v_abs, value.v_const -/
+    repeat { cases ht },
 end
 
 lemma cannonical_forms_fun {t T₁ T₂}
-  (ht : has_type context.empty t (arrow T₁ T₂)) (v : value t) :
-  ∃x T u, t = abs x T u :=
+  (ht : has_type context.empty t (ty.arrow T₁ T₂)) (v : value t) :
+  ∃x T u, t = tm.abs x T u :=
 begin
   cases v,
-    case value.v_abs : x T t {
-      existsi x,
-      existsi T,
-      existsi t,
-      reflexivity,
-    },
-    case value.v_const: { cases ht },
-    case value.v_tru: { cases ht },
-    case value.v_fls: { cases ht },
+    case value.v_abs : x T t { existsi x, existsi T, existsi t, reflexivity },
+    /- value.v_const, value.v_tru, value.v_fls -/
+    repeat { cases ht },
 end
 
 lemma cannonical_forms_nat {t}
-  (ht : has_type context.empty t nat) (v : value t) :
-  ∃n, t = const n :=
+  (ht : has_type context.empty t ty.nat) (v : value t) :
+  ∃n, t = tm.const n :=
 begin
   cases v,
-    case value.v_abs: { cases ht },
     case value.v_const: { existsi _, reflexivity },
-    case value.v_tru: { cases ht },
-    case value.v_fls: { cases ht },
+    /- value.v_abs, value.v_tru, value.v_fls -/
+    repeat { cases ht },
 end
 
 theorem progress {t T} :
@@ -51,37 +38,74 @@ begin
   generalize h : context.empty = e,
   intro ht,
   induction ht,
-    case has_type.t_var: e s t ht { rewrite <-h at ht, cases ht },
-    case has_type.t_abs: { left, constructor },
-    case has_type.t_app: e t₁ t₂ m₁ m₂ ht₁ ht₂ ih₃ ih₄ {
-      rcases ih₃ h with v₁ | ⟨t₁', s₁⟩,
-        begin
-          rcases ih₄ h with v₂ | ⟨t₂', s₂⟩,
+    case has_type.t_var: _ _ _ ht { rewrite <-h at ht, cases ht },
+    case has_type.t_app: _ _ _ _ _ ht₁ _ ih₁ ih₂ {
+      rcases ih₁ h with v₁ | ⟨_, s₁⟩,
+        { rcases ih₂ h with v₂ | ⟨_, s₂⟩,
             { cases v₁; cases ht₁, right, existsi _, exact step.st_appabs v₂ },
-            { right, existsi _, exact step.st_app2 v₁ s₂ },
-        end,
-        begin
+            { right, existsi _, exact step.st_app2 v₁ s₂ } },
+        { right, existsi _, exact step.st_app1 s₁ },
+    },
+    case has_type.t_prd: _ _ ht ih {
+      rcases ih h with v | ⟨_, s⟩,
+        { rewrite <-h at ht,
+          rcases cannonical_forms_nat ht v with ⟨n, h'⟩,
+          rewrite h',
+          right,
+          cases n with m,
+            { existsi _, exact step.st_prdzro },
+            { existsi _, exact step.st_prdnzr } },
+        { right, existsi _, exact step.st_prd s },
+    },
+    case has_type.t_scc: _ _ ht ih {
+      rcases ih h with v | ⟨_, s⟩,
+        { rewrite <-h at ht,
+          rcases cannonical_forms_nat ht v with ⟨_, h'⟩,
+          rewrite h',
           right,
           existsi _,
-          exact step.st_app1 s₁,
-        end,
+          exact step.st_sccn },
+        { right, existsi _, exact step.st_scc s },
     },
-    case has_type.t_tru: { left, constructor },
-    case has_type.t_fls: { left, constructor },
-    case has_type.t_tst: e T t₁ t₂ t₃ ht₁ ht₂ ht₃ ih₁ ih₂ ih₃ {
-      rcases ih₁ h with v₁ | ⟨t₁', s₁⟩,
-        begin
-          rewrite <-h at ht₁,
-          cases cannonical_forms_bool ht₁ v₁ with h_tru h_fls,
-            { rewrite h_tru, right, existsi _, exact st_tsttru },
-            { rewrite h_fls, right, existsi _, exact st_tstfls },
-        end,
-        begin
+    case has_type.t_mlt: _ _ _ ht₁ ht₂ ih₁ ih₂ {
+      rcases ih₁ h with v₁ | ⟨_, s₁⟩,
+        { rewrite <-h at ht₁,
+          rcases cannonical_forms_nat ht₁ v₁ with ⟨_, h₁⟩,
+          rewrite h₁ at v₁,
+          rewrite h₁,
+          rcases ih₂ h with v₂ | ⟨_, s₂⟩,
+            { rewrite <-h at ht₂,
+              rcases cannonical_forms_nat ht₂ v₂ with ⟨_, h₂⟩,
+              rewrite h₂,
+              right,
+              existsi _,
+              exact step.st_mltnm },
+            { right, existsi _, exact step.st_mlt2 v₁ s₂ },
+        },
+        { right, existsi _, exact step.st_mlt1 s₁ },
+    },
+    case has_type.t_iszro: _ _ ht ih {
+      rcases ih h with v | ⟨_, s⟩,
+        { rewrite <-h at ht,
+          rcases cannonical_forms_nat ht v with ⟨n, h'⟩,
+          rewrite h',
           right,
-          existsi _,
-          exact st_tst s₁,
-        end,
+          cases n with m,
+            { existsi _, exact step.st_iszrozro },
+            { existsi _, exact step.st_iszronzr } },
+        { right, existsi _, exact step.st_iszro s },
     },
+    case has_type.t_tst: _ _ _ _ _ ht₁ _ _ ih₁ {
+      rcases ih₁ h with v₁ | ⟨_, s₁⟩,
+        { rewrite <-h at ht₁,
+          cases cannonical_forms_bool ht₁ v₁,
+          repeat { simp [*], right, existsi _ },
+            { exact step.st_tsttru },
+            { exact step.st_tstfls }, },
+        { right, existsi _, exact step.st_tst s₁ },
+    },
+    /- has_type.t_abs, has_type.t_tru, has_type.t_fls, has_type.t_const -/
+    repeat { left, constructor },
 end
 
 theorem progress' :
@@ -90,7 +114,6 @@ begin
   intro t,
   induction t,
     case tm.var: { intros _ ht, cases ht, cases ht_a },
-    case tm.abs: { intros, left, constructor },
     case tm.app: _ _ ih₁ ih₂ {
       intros _ ht,
       cases ht,
@@ -100,66 +123,87 @@ begin
               rewrite h,
               right,
               existsi _,
-              exact st_appabs v₂ },
-            { right, existsi _, exact st_app2 v₁ s₂ } },
-        { right, existsi _, exact st_app1 s₁ },
+              exact step.st_appabs v₂ },
+            { right, existsi _, exact step.st_app2 v₁ s₂ } },
+        { right, existsi _, exact step.st_app1 s₁ },
     },
-    case tm.tru: { intros, left, constructor },
-    case tm.fls: { intros, left, constructor },
+    case tm.prd: _ ih {
+      intros _ ht,
+      cases ht,
+      rcases ih ht_a with v | ⟨_, s⟩,
+        { rcases cannonical_forms_nat ht_a v with ⟨n, h⟩,
+          right,
+          rewrite h,
+          cases n with m,
+            { existsi _, exact step.st_prdzro },
+            { existsi _, exact step.st_prdnzr } },
+        { right, existsi _, exact step.st_prd s },
+    },
+    case tm.scc: _ ih {
+      intros _ ht,
+      cases ht,
+      rcases ih ht_a with v | ⟨_, s⟩,
+        { rcases cannonical_forms_nat ht_a v with ⟨_, h⟩,
+          right,
+          rewrite h,
+          existsi _,
+          exact step.st_sccn },
+        { right, existsi _, exact step.st_scc s },
+    },
+    case tm.mlt: _ _ ih₁ ih₂ {
+      intros _ ht,
+      cases ht,
+      rcases ih₁ ht_a with v₁ | ⟨_, s₁⟩,
+        { rcases cannonical_forms_nat ht_a v₁ with ⟨_, h₁⟩,
+          right,
+          rewrite h₁ at v₁,
+          rewrite h₁,
+          rcases ih₂ ht_a_1 with v₂ | ⟨_, s₂⟩,
+            { rcases cannonical_forms_nat ht_a_1 v₂ with ⟨_, h₂⟩,
+              rewrite h₂,
+              existsi _,
+              exact step.st_mltnm },
+            { existsi _, exact step.st_mlt2 v₁ s₂ } },
+        { right, existsi _, exact step.st_mlt1 s₁ },
+    },
+    case tm.iszro: _ ih {
+      intros _ ht,
+      cases ht,
+      rcases ih ht_a with v | ⟨_, s⟩,
+        { rcases cannonical_forms_nat ht_a v with ⟨n, h⟩,
+          right,
+          rewrite h,
+          cases n with m,
+            { existsi _, exact step.st_iszrozro },
+            { existsi _, exact step.st_iszronzr } },
+        { right, existsi _, exact step.st_iszro s },
+    },
     case tm.tst: _ _ _ ih₁ ih₂ ih₃ {
       intros _ ht,
       cases ht,
       rcases ih₁ ht_a with v₁ | ⟨_, s₁⟩,
         { cases cannonical_forms_bool ht_a v₁ with h_tru h_fls,
-            { rewrite h_tru, right, existsi _, exact st_tsttru },
-            { rewrite h_fls, right, existsi _, exact st_tstfls } },
-        { right, existsi _, apply st_tst s₁ },
+            { rewrite h_tru, right, existsi _, exact step.st_tsttru },
+            { rewrite h_fls, right, existsi _, exact step.st_tstfls } },
+        { right, existsi _, exact step.st_tst s₁ },
     },
+    /- tm.abs, tm.tru, tm.fls, tm.const -/
+    repeat { intros, left, constructor },
 end
 
 lemma free_in_context {x t} (afi : appears_free_in x t) :
   ∀{gamma T}, has_type gamma t T -> ∃T', gamma x = some T' :=
 begin
   induction afi,
-    case appears_free_in.afi_var: {
-      intros gamma T ht,
-      cases ht,
-      existsi T,
-      exact ht_a,
-    },
-    case appears_free_in.afi_abs: _ _ _ hne _ ih {
-      intros gamma T ht,
-      cases ht with,
-      rcases ih ht_a with ⟨T', h'⟩,
+    repeat { intros, cases a },
+    /- appears_free_in.afi_var -/ { existsi T, assumption },
+    /- appears_free_in.afi_abs -/ {
+      rcases afi_ih a_a with ⟨T', h'⟩,
       existsi T',
-      rewrite partial_map.update_neq hne at h',
+      rewrite partial_map.update_neq afi_a at h',
       exact h',
     },
-    case appears_free_in.afi_app1: _ _ _ ih {
-      intros gamma T ht,
-      cases ht,
-      exact ih ht_a,
-    },
-    case appears_free_in.afi_app2: _ _ _ ih {
-      intros gamma T ht,
-      cases ht,
-      exact ih ht_a_1,
-    },
-    case appears_free_in.afi_tst1: _ _ _ _ ih {
-      intros gamma T ht,
-      cases ht,
-      exact ih ht_a,
-    },
-    case appears_free_in.afi_tst2: _ _ _ _ ih {
-      intros gamma T ht,
-      cases ht,
-      exact ih ht_a_1,
-    },
-    case appears_free_in.afi_tst3: _ _ _ _ ih {
-      intros gamma T ht,
-      cases ht,
-      exact ih ht_a_2,
-    },
+    repeat { apply afi_ih, assumption }
 end
 
 lemma typable_empty__closed {t T} : has_type context.empty t T -> closed t :=
@@ -176,35 +220,75 @@ begin
   induction ht,
     case has_type.t_var: _ x _ h {
       intros _ f,
-      apply t_var,
-      rewrite <-f (afi_var x),
+      apply has_type.t_var,
+      rewrite <-f (appears_free_in.afi_var x),
       exact h,
     },
     case has_type.t_abs: _ x T₁ _ _ _ ih {
       intros gamma' f,
-      apply t_abs,
+      apply has_type.t_abs,
       apply @ih (partial_map.update x T₁ gamma'),
       intros y afi,
       by_cases h : x = y,
-      repeat {
-        simp [h, partial_map.update, total_map.update];
-        exact f (afi_abs h afi)
-      },
+        repeat {
+          simp [h, partial_map.update, total_map.update];
+          exact f (appears_free_in.afi_abs h afi)
+        },
     },
     case has_type.t_app: _ _ _ _ _ _ _ ih₁ ih₂ {
       intros _ f,
-      apply t_app,
-        { apply ih₁, intros x afi₁, apply @f x, exact afi_app1 afi₁ },
-        { apply ih₂, intros x afi₂, apply @f x, exact afi_app2 afi₂ },
+      apply has_type.t_app,
+      repeat { apply ih₁ <|> apply ih₂, intros x afi, apply @f x },
+        { exact appears_free_in.afi_app1 afi },
+        { exact appears_free_in.afi_app2 afi },
     },
-    case has_type.t_tru: { intros x f, apply t_tru },
-    case has_type.t_fls: { intros x f, apply t_fls },
     case has_type.t_tst: gamma _ _ _ _ _ _ _ ih₁ ih₂ ih₃ {
       intros _ f,
-      apply t_tst,
-        { apply ih₁, intros x afi₁, apply @f x, exact afi_tst1 afi₁ },
-        { apply ih₂, intros x afi₂, apply @f x, exact afi_tst2 afi₂ },
-        { apply ih₃, intros x afi₃, apply @f x, exact afi_tst3 afi₃ },
+      apply has_type.t_tst,
+      repeat {
+        apply ih₁ <|> apply ih₂ <|> apply ih₃,
+        intros x afi,
+        apply @f x
+      },
+        { exact appears_free_in.afi_tst1 afi },
+        { exact appears_free_in.afi_tst2 afi },
+        { exact appears_free_in.afi_tst3 afi },
+    },
+    case has_type.t_prd: _ _ _ ih {
+      intros _ f,
+      apply has_type.t_prd,
+      apply ih,
+      intros x afi,
+      apply @f x,
+      exact appears_free_in.afi_prd afi,
+    },
+    case has_type.t_scc: _ _ _ ih {
+      intros _ f,
+      apply has_type.t_scc,
+      apply ih,
+      intros x afi,
+      apply @f x,
+      exact appears_free_in.afi_scc afi,
+    },
+    case has_type.t_mlt: _ _ _ _ _ ih₁ ih₂ {
+      intros _ f,
+      apply has_type.t_mlt,
+      repeat { apply ih₁ <|> apply ih₂, intros x afi, apply @f x },
+        { exact appears_free_in.afi_mlt1 afi },
+        { exact appears_free_in.afi_mlt2 afi },
+    },
+    case has_type.t_iszro: _ _ _ ih {
+      intros _ f,
+      apply has_type.t_iszro,
+      apply ih,
+      intros x afi,
+      apply @f x,
+      exact appears_free_in.afi_iszro afi,
+    },
+    /- has_type.t_const, has_type.t_tru, has_type.t_fls -/
+    repeat {
+      intros,
+      exact has_type.t_const <|> exact has_type.t_tru <|> exact has_type.t_fls
     },
 end
 
@@ -218,29 +302,23 @@ begin
     case tm.var: y {
       intros _ _ ht_t ht_v,
       by_cases h : x = y,
-        begin
-          rewrite h at ht_t,
-          cases ht_t,
-          simp at ht_t_a,
-          simp [h, ht_t_a, subst],
-          rewrite ht_t_a at ht_v,
+      repeat {
+        try { rewrite h at ht_t },
+        cases ht_t,
+        simp [h] at ht_t_a,
+        simp [h, ht_t_a, subst],
+      },
+        { rewrite ht_t_a at ht_v,
           apply context_invariance ht_v,
           intros z afi,
           apply false.elim,
-          exact typable_empty__closed ht_v z afi,
-        end,
-        begin
-          cases ht_t,
-          simp [h] at ht_t_a,
-          simp [h, subst],
-          exact t_var ht_t_a,
-        end,
+          exact typable_empty__closed ht_v z afi },
+        { exact has_type.t_var ht_t_a },
     },
     case tm.abs: y T' t ih {
       intros T gamma ht_t ht_v,
       by_cases h : x = y,
-        begin
-          rewrite h at ht_t,
+        { rewrite h at ht_t,
           cases ht_t,
           have ht' : has_type (partial_map.update y T' $
                               partial_map.update y U gamma)
@@ -249,10 +327,8 @@ begin
           from ht_t_a,
           rewrite partial_map.update_shadow at ht',
           simp [h, subst],
-          exact t_abs ht',
-        end,
-        begin
-          cases ht_t,
+          exact has_type.t_abs ht' },
+        { cases ht_t,
           have ht' : has_type (partial_map.update y T' $
                                partial_map.update x U gamma)
                               t
@@ -260,22 +336,50 @@ begin
           from ht_t_a,
           rewrite partial_map.update_permute (ne.symm h) at ht',
           simp [h, subst],
-          exact t_abs (ih ht' ht_v),
-        end,
+          exact has_type.t_abs (ih ht' ht_v) },
     },
     case tm.app: _ _ ih₁ ih₂ {
       intros _ _ ht_t ht_v,
       cases ht_t,
       simp [subst],
-      exact t_app (ih₁ ht_t_a ht_v) (ih₂ ht_t_a_1 ht_v),
+      exact has_type.t_app (ih₁ ht_t_a ht_v) (ih₂ ht_t_a_1 ht_v),
     },
-    case tm.tru: { intros _ _ ht_t _, cases ht_t, simp [subst], exact t_tru },
-    case tm.fls: { intros _ _ ht_t _, cases ht_t, simp [subst], exact t_fls },
+    case tm.prd: _ ih {
+      intros _ _ ht_t ht_v,
+      cases ht_t,
+      simp [subst],
+      exact has_type.t_prd (ih ht_t_a ht_v),
+    },
+    case tm.scc: _ ih {
+      intros _ _ ht_t ht_v,
+      cases ht_t,
+      simp [subst],
+      exact has_type.t_scc (ih ht_t_a ht_v),
+    },
+    case tm.mlt: _ _ ih₁ ih₂ {
+      intros _ _ ht_t ht_v,
+      cases ht_t,
+      simp [subst],
+      exact has_type.t_mlt (ih₁ ht_t_a ht_v) (ih₂ ht_t_a_1 ht_v),
+    },
+    case tm.iszro: _ ih {
+      intros _ _ ht_t ht_v,
+      cases ht_t,
+      simp [subst],
+      exact has_type.t_iszro (ih ht_t_a ht_v),
+    },
     case tm.tst: t₁ t₂ t₃ ih₁ ih₂ ih₃ {
       intros _ _ ht_t ht_v,
       cases ht_t,
       simp [subst],
-      exact t_tst (ih₁ ht_t_a ht_v) (ih₂ ht_t_a_1 ht_v) (ih₃ ht_t_a_2 ht_v),
+      exact has_type.t_tst (ih₁ ht_t_a ht_v) (ih₂ ht_t_a_1 ht_v) (ih₃ ht_t_a_2 ht_v),
+    },
+    /- tm.const, tm.tru, tm.fls -/
+    repeat {
+      intros _ _ ht_t _,
+      cases ht_t,
+      simp [subst],
+      exact has_type.t_const <|> exact has_type.t_tru <|> exact has_type.t_fls,
     },
 end
 
@@ -285,8 +389,6 @@ begin
   generalize h : context.empty = gamma,
   intro ht,
   induction ht,
-    case has_type.t_var: { intros _ s, cases s },
-    case has_type.t_abs: { intros _ s, cases s },
     case has_type.t_app: _ _ _ _ _ ht₁ ht₂ ih₁ ih₂  {
       intros _ s,
       cases s,
@@ -297,30 +399,52 @@ begin
           simp [symm h],
           exact substitution_preserves_typing ht₁_a ht₂,
         },
-        case step.st_app1: { exact t_app (ih₁ h s_a) ht₂ },
-        case step.st_app2: { exact t_app ht₁ (ih₂ h s_a_1) },
+        case step.st_app1: { exact has_type.t_app (ih₁ h s_a) ht₂ },
+        case step.st_app2: { exact has_type.t_app ht₁ (ih₂ h s_a_1) },
     },
-    case has_type.t_tru: { intros _ s, cases s },
-    case has_type.t_fls: { intros _ s, cases s },
+    case has_type.t_prd: _ _ ht ih {
+      intros _ s,
+      cases s,
+        case step.st_prdzro: { exact ht },
+        case step.st_prdnzr: { exact has_type.t_const },
+        case step.st_prd: { exact has_type.t_prd (ih h s_a) },
+    },
+    case has_type.t_scc: _ _ ht ih {
+      intros _ s,
+      cases s,
+        case step.st_sccn: { exact has_type.t_const },
+        case step.st_scc: { exact has_type.t_scc (ih h s_a) },
+    },
+    case has_type.t_mlt: _ _ _ ht₁ ht₂ ih₁ ih₂ {
+      intros _ s,
+      cases s,
+        case step.st_mlt1: { exact has_type.t_mlt (ih₁ h s_a) ht₂ },
+        case step.st_mlt2: { exact has_type.t_mlt ht₁ (ih₂ h s_a_1) },
+        case step.st_mltnm: { exact has_type.t_const },
+    },
+    case has_type.t_iszro: _ _ ht ih {
+      intros _ s,
+      cases s,
+        case step.st_iszrozro: { exact has_type.t_tru },
+        case step.st_iszronzr: { exact has_type.t_fls },
+        case step.st_iszro: { exact has_type.t_iszro (ih h s_a) },
+    },
     case has_type.t_tst: _ _ _ _ _ ht₁ ht₂ ht₃ ih₁ ih₂ ih₃ {
       intros _ s,
       cases s,
         case step.st_tsttru: { exact ht₂ },
         case step.st_tstfls: { exact ht₃ },
-        case step.st_tst: { exact t_tst (ih₁ h s_a) ht₂ ht₃ },
+        case step.st_tst: { exact has_type.t_tst (ih₁ h s_a) ht₂ ht₃ },
     },
+    /- has_type.t_var, has_type.t_abs, has_type.t_const, has_type.t_tru,
+       has_type.t_fls -/
+    repeat { intros _ s, cases s },
 end
 
 lemma subject_expansion :
   ∃t t' T,
   (t -+> t') -> has_type context.empty t' T -> ¬has_type context.empty t T :=
-begin
-  existsi tru,
-  existsi fls,
-  existsi ty.bool,
-  intro s,
-  cases s,
-end
+by { existsi tm.tru, existsi tm.fls, existsi ty.bool, intro s, cases s }
 
 lemma soundness {t t' T} (ht : has_type context.empty t T) (ss : t -+>* t') :
   ¬stuck t' :=
@@ -360,11 +484,12 @@ begin
       rewrite ih₂ ht'_a_1 at h,
       injection h,
     },
-    case has_type.t_tru: { intros _ ht', cases ht', reflexivity },
-    case has_type.t_fls: { intros _ ht', cases ht', reflexivity },
     case has_type.t_tst: _ _ _ _ _ _ _ _ _ ih₂ {
       intros _ ht',
       cases ht',
       exact ih₂ ht'_a_1,
     },
+    /- has_type.t_const, has_type.t_prd, has_type.t_scc, has_type.t_mlt,
+       has_type.t_iszro, has_type.t_tru, has_type.t_fls -/
+    repeat { intros _ ht', cases ht', reflexivity },
 end
