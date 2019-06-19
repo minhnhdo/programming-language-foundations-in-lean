@@ -23,15 +23,11 @@ inductive tm : Type
 
 open tm
 
-def x := "x"
-def y := "y"
-def z := "z"
-
-def idB := abs x bool (var x)
-def idBB := abs x (arrow bool bool) (var x)
-def idBBBB := abs x (arrow (arrow bool bool) (arrow bool bool)) (var x)
-def k := abs x bool (abs y bool (var x))
-def notB := abs x bool (tst (var x) fls tru)
+def idB := abs "x" bool (var "x")
+def idBB := abs "x" (arrow bool bool) (var "x")
+def idBBBB := abs "x" (arrow (arrow bool bool) (arrow bool bool)) (var "x")
+def k := abs "x" bool (abs "y" bool (var "x"))
+def notB := abs "x" bool (tst (var "x") fls tru)
 
 inductive value : tm -> Prop
 | v_abs {x T t} : value (abs x T t)
@@ -199,7 +195,7 @@ inductive has_type : context -> tm -> ty -> Prop
 
 open has_type
 
-example : has_type context.empty (abs x bool (var x)) (arrow bool bool) :=
+example : has_type context.empty (abs "x" bool (var "x")) (arrow bool bool) :=
 t_abs (t_var rfl)
 
 meta def auto_typing : tactic unit :=
@@ -213,21 +209,21 @@ tactic.repeat (   tactic.applyc ``t_tru
               <|> tactic.applyc ``t_iszro
               <|> tactic.applyc ``t_tst )
 
-example : has_type context.empty (abs x bool (var x)) (arrow bool bool) :=
+example : has_type context.empty (abs "x" bool (var "x")) (arrow bool bool) :=
 by auto_typing
 
 example {t : ty} : has_type context.empty
-                            (abs x t
-                              (abs y (arrow t t)
-                                (app (var y) (app (var y) (var x)))))
+                            (abs "x" t
+                              (abs "y" (arrow t t)
+                                (app (var "y") (app (var "y") (var "x")))))
                             (arrow t (arrow (arrow t t) t)) :=
 t_abs (t_abs (t_app (t_var rfl) (t_app (t_var rfl) (t_var rfl))))
 
 example : ∃t, has_type context.empty
-                       (abs x (arrow bool bool)
-                         (abs y (arrow bool bool)
-                           (abs z bool
-                             (app (var y) (app (var x) (var z))))))
+                       (abs "x" (arrow bool bool)
+                         (abs "y" (arrow bool bool)
+                           (abs "z" bool
+                             (app (var "y") (app (var "x") (var "z"))))))
                        t :=
 ⟨ arrow (arrow bool bool)
         (arrow (arrow bool bool)
@@ -248,7 +244,7 @@ begin
     repeat { cases h },
 end
 
-example : ¬∃s t, has_type context.empty (abs x s (app (var x) (var x))) t :=
+example : ¬∃s t, has_type context.empty (abs "x" s (app (var "x") (var "x"))) t :=
 assume ⟨ _, _, t_abs (t_app (t_var h₁) (t_var h₂)) ⟩,
 have h : some (arrow _ _) = some _, from eq.trans (eq.symm h₁) h₂,
 option.no_confusion h (assume h', arrow_no_confusion h')
