@@ -20,6 +20,7 @@ inductive tm : Type
 | tru : tm
 | fls : tm
 | tst : tm -> tm -> tm -> tm
+| let_ : string -> tm -> tm -> tm
 
 open tm
 
@@ -49,6 +50,7 @@ def subst (x : string) (s : tm) : tm -> tm
 | tru := tru
 | fls := fls
 | (tst t1 t2 t3) := tst (subst t1) (subst t2) (subst t3)
+| (let_ y t₁ t₂) := let_ y (subst t₁) (if x = y then t₂ else (subst t₂))
 
 notation `[` x `:=` s `]` t := subst x s t
 
@@ -71,6 +73,12 @@ inductive substi (s : tm) (x : string) : tm -> tm -> Prop
 | s_tst {t1 t1' t2 t2' t3 t3' : tm} :
     substi t1 t1' -> substi t2 t2' -> substi t3 t3' ->
     substi (tst t1 t2 t3) (tst t1' t2' t3')
+| s_let1 {t₁ t₁' t₂} : substi t₁ t₁' -> substi (let_ x t₁ t₂) (let_ x t₁' t₂)
+| s_let2 {y t₁ t₁' t₂ t₂'} :
+    y ≠ x ->
+    substi t₁ t₁' ->
+    substi t₂ t₂' ->
+    substi (let_ y t₁ t₂) (let_ y t₁' t₂')
 
 theorem substi_correct : ∀ x s t t', ([x:=s]t) = t' ↔ substi s x t t' :=
 begin
@@ -102,10 +110,19 @@ begin
       case tm.mlt: { apply substi.s_mlt, repeat { assumption } },
       case tm.tru: { apply substi.s_tru },
       case tm.fls: { apply substi.s_fls },
-      case tm.tst: { apply substi.s_tst, repeat { assumption } } },
+      case tm.tst: { apply substi.s_tst, repeat { assumption } },
+      case tm.let_: y _ _ ih₁ ih₂ {
+        unfold subst,
+        by_cases h : x = y,
+          { simp [h], rewrite h at ih₁, exact substi.s_let1 ih₁ },
+          { simp [h], exact substi.s_let2 (ne.symm h) ih₁ ih₂, },
+      } },
   { intro sub,
     induction sub,
-    repeat { simp [*, subst]; /- s_var2 and s_abs2 -/ simp [ne.symm sub_a] } },
+    repeat {
+      simp [*, subst];
+      /- s_var2, s_abs2, s_let2 -/ simp [ne.symm sub_a]
+    } },
 end
 
 inductive step : tm -> tm -> Prop
@@ -126,7 +143,9 @@ inductive step : tm -> tm -> Prop
 | st_iszro {t t'} : step t t' -> step (iszro t) (iszro t')
 | st_tsttru {t2 t3} : step (tst tru t2 t3) t2
 | st_tstfls {t2 t3} : step (tst fls t2 t3) t3
-| st_tst {t1 t1' t2 t3} : step t1 t1' -> step (tst t1 t2 t3) (tst t1' t2 t3)
+| st_tst {t₁ t₁' t₂ t₃} : step t₁ t₁' -> step (tst t₁ t₂ t₃) (tst t₁' t₂ t₃)
+| st_let {t₁ t₁' x t₂} : step t₁ t₁' -> step (let_ x t₁ t₂) (let_ x t₁' t₂)
+| st_letvalue {x t₁ t₂} : value t₁ -> step (let_ x t₁ t₂) ([x:=t₁]t₂)
 
 open step
 
@@ -192,6 +211,10 @@ inductive has_type : context -> tm -> ty -> Prop
     has_type gamma t₂ T ->
     has_type gamma t₃ T ->
     has_type gamma (tst t₁ t₂ t₃) T
+| t_let {gamma x T₁ T₂ t₁ t₂} :
+    has_type gamma t₁ T₁ ->
+    has_type (partial_map.update x T₁ gamma) t₂ T₂ ->
+    has_type gamma (let_ x t₁ t₂) T₂
 
 open has_type
 
@@ -207,7 +230,8 @@ tactic.repeat (   tactic.applyc ``t_tru
               <|> tactic.applyc ``t_prd
               <|> tactic.applyc ``t_scc
               <|> tactic.applyc ``t_iszro
-              <|> tactic.applyc ``t_tst )
+              <|> tactic.applyc ``t_tst
+              <|> tactic.applyc ``t_let )
 
 example : has_type context.empty (abs "x" bool (var "x")) (arrow bool bool) :=
 by auto_typing
@@ -262,6 +286,9 @@ inductive appears_free_in (x : string) : tm -> Prop
 | afi_tst1 {t₁ t₂ t₃} : appears_free_in t₁ -> appears_free_in (tst t₁ t₂ t₃)
 | afi_tst2 {t₁ t₂ t₃} : appears_free_in t₂ -> appears_free_in (tst t₁ t₂ t₃)
 | afi_tst3 {t₁ t₂ t₃} : appears_free_in t₃ -> appears_free_in (tst t₁ t₂ t₃)
+| afi_let1 {y t₁ t₂} : appears_free_in t₁ -> appears_free_in (let_ y t₁ t₂)
+| afi_let2 {y t₁ t₂} :
+    y ≠ x -> appears_free_in t₂ -> appears_free_in (let_ y t₁ t₂)
 
 def closed (t : tm) := ∀x, ¬appears_free_in x t
 

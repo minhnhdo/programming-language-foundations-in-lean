@@ -104,6 +104,11 @@ begin
             { exact step.st_tstfls }, },
         { right, existsi _, exact step.st_tst s₁ },
     },
+    case has_type.t_let: _ _ _ _ _ _ ht₁ ht₂ ih₁ ih₂ {
+      rcases ih₁ h with v₁ | ⟨_, s₁⟩,
+        { right, existsi _, exact step.st_letvalue v₁ },
+        { right, existsi _, exact step.st_let s₁ },
+    },
     /- has_type.t_abs, has_type.t_tru, has_type.t_fls, has_type.t_const -/
     repeat { left, constructor },
 end
@@ -187,6 +192,13 @@ begin
             { rewrite h_fls, right, existsi _, exact step.st_tstfls } },
         { right, existsi _, exact step.st_tst s₁ },
     },
+    case tm.let_: _ _ _ ih₁ ih₂ {
+      intros _ ht,
+      cases ht,
+      rcases ih₁ ht_a with v₁ | ⟨_, s₁⟩,
+        { right, existsi _, exact step.st_letvalue v₁ },
+        { right, existsi _, exact step.st_let s₁ },
+    },
     /- tm.abs, tm.tru, tm.fls, tm.const -/
     repeat { intros, left, constructor },
 end
@@ -199,11 +211,17 @@ begin
     /- appears_free_in.afi_var -/ { existsi T, assumption },
     /- appears_free_in.afi_abs -/ {
       rcases afi_ih a_a with ⟨T', h'⟩,
-      existsi T',
       rewrite partial_map.update_neq afi_a at h',
+      existsi T',
       exact h',
     },
-    repeat { apply afi_ih, assumption }
+    repeat { apply afi_ih, assumption },
+    /- appears_free_in.afi_let2 -/ {
+      rcases afi_ih a_a_1 with ⟨T', h'⟩,
+      rewrite partial_map.update_neq afi_a at h',
+      existsi T',
+      exact h',
+    },
 end
 
 lemma typable_empty__closed {t T} : has_type context.empty t T -> closed t :=
@@ -285,6 +303,19 @@ begin
       apply @f x,
       exact appears_free_in.afi_iszro afi,
     },
+    case has_type.t_let: _ x _ _ _ _ _ _ ih₁ ih₂ {
+      intros _ f,
+      apply has_type.t_let,
+        { apply ih₁,
+          intros y afi,
+          apply @f y, exact appears_free_in.afi_let1 afi },
+        { apply ih₂,
+          intros y afi,
+          by_cases h : x = y,
+          repeat { simp [*, partial_map.update, total_map.update] },
+          apply @f y,
+          exact appears_free_in.afi_let2 h afi },
+    },
     /- has_type.t_const, has_type.t_tru, has_type.t_fls -/
     repeat {
       intros,
@@ -341,38 +372,55 @@ begin
     case tm.app: _ _ ih₁ ih₂ {
       intros _ _ ht_t ht_v,
       cases ht_t,
-      simp [subst],
       exact has_type.t_app (ih₁ ht_t_a ht_v) (ih₂ ht_t_a_1 ht_v),
     },
     case tm.prd: _ ih {
       intros _ _ ht_t ht_v,
       cases ht_t,
-      simp [subst],
       exact has_type.t_prd (ih ht_t_a ht_v),
     },
     case tm.scc: _ ih {
       intros _ _ ht_t ht_v,
       cases ht_t,
-      simp [subst],
       exact has_type.t_scc (ih ht_t_a ht_v),
     },
     case tm.mlt: _ _ ih₁ ih₂ {
       intros _ _ ht_t ht_v,
       cases ht_t,
-      simp [subst],
       exact has_type.t_mlt (ih₁ ht_t_a ht_v) (ih₂ ht_t_a_1 ht_v),
     },
     case tm.iszro: _ ih {
       intros _ _ ht_t ht_v,
       cases ht_t,
-      simp [subst],
       exact has_type.t_iszro (ih ht_t_a ht_v),
     },
-    case tm.tst: t₁ t₂ t₃ ih₁ ih₂ ih₃ {
+    case tm.tst: _ _ _ ih₁ ih₂ ih₃ {
       intros _ _ ht_t ht_v,
       cases ht_t,
-      simp [subst],
       exact has_type.t_tst (ih₁ ht_t_a ht_v) (ih₂ ht_t_a_1 ht_v) (ih₃ ht_t_a_2 ht_v),
+    },
+    case tm.let_: y _ _ ih₁ ih₂ {
+      intros _ _ ht_t ht_v,
+      by_cases h : y = x,
+        { cases ht_t,
+          simp [h, subst],
+          rewrite h at ht_t_a_1,
+          have ht₂ : has_type (partial_map.update x ht_t_T₁ $
+                               partial_map.update x U gamma)
+                              t_a_2
+                              T,
+          from ht_t_a_1,
+          rewrite partial_map.update_shadow at ht₂,
+          exact has_type.t_let (ih₁ ht_t_a ht_v) ht₂ },
+        { cases ht_t,
+          simp [ne.symm h, subst],
+          have ht₂ : has_type (partial_map.update y ht_t_T₁ $
+                               partial_map.update x U gamma)
+                              t_a_2
+                              T,
+          from ht_t_a_1,
+          rewrite partial_map.update_permute h at ht₂,
+          apply has_type.t_let (ih₁ ht_t_a ht_v) (ih₂ ht₂ ht_v) },
     },
     /- tm.const, tm.tru, tm.fls -/
     repeat {
@@ -436,6 +484,17 @@ begin
         case step.st_tstfls: { exact ht₃ },
         case step.st_tst: { exact has_type.t_tst (ih₁ h s_a) ht₂ ht₃ },
     },
+    case has_type.t_let: _ _ _ _ _ _ ht₁ ht₂ ih₁ ih₂ {
+      intros _ s,
+      cases s,
+        case step.st_let: { exact has_type.t_let (ih₁ h s_a) ht₂ },
+        case step.st_letvalue: {
+          rewrite <-h,
+          rewrite <-h at ht₁,
+          rewrite <-h at ht₂,
+          exact substitution_preserves_typing ht₂ ht₁,
+        },
+    },
     /- has_type.t_var, has_type.t_abs, has_type.t_const, has_type.t_tru,
        has_type.t_fls -/
     repeat { intros _ s, cases s },
@@ -487,6 +546,12 @@ begin
     case has_type.t_tst: _ _ _ _ _ _ _ _ _ ih₂ {
       intros _ ht',
       cases ht',
+      exact ih₂ ht'_a_1,
+    },
+    case has_type.t_let: _ _ _ _ _ _ _ _ ih₁ ih₂ {
+      intros _ ht',
+      cases ht',
+      rewrite ih₁ ht'_a at ih₂,
       exact ih₂ ht'_a_1,
     },
     /- has_type.t_const, has_type.t_prd, has_type.t_scc, has_type.t_mlt,
