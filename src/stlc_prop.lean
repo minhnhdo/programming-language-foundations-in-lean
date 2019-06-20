@@ -14,10 +14,10 @@ end
 
 lemma cannonical_forms_fun {t T₁ T₂}
   (ht : has_type context.empty t (ty.arrow T₁ T₂)) (v : value t) :
-  ∃x T u, t = tm.abs x T u :=
+  ∃x u, t = tm.abs x T₁ u :=
 begin
   cases v,
-    case value.v_abs : x T t { existsi x, existsi T, existsi t, reflexivity },
+    case value.v_abs : { cases ht, existsi _, existsi _, reflexivity },
     /- value.v_const, value.v_tru, value.v_fls, value.v_pair, value.v_unit -/
     repeat { cases ht },
 end
@@ -171,7 +171,7 @@ begin
       cases ht,
       rcases ih₁ ht_a with v₁ | ⟨_, s₁⟩,
         { rcases ih₂ ht_a_1 with v₂ | ⟨_, s₂⟩,
-            { rcases cannonical_forms_fun ht_a v₁ with ⟨_, _, _, h⟩,
+            { rcases cannonical_forms_fun ht_a v₁ with ⟨_, _, h⟩,
               rewrite h,
               right,
               existsi _,
