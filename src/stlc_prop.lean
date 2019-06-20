@@ -8,7 +8,7 @@ begin
   cases v,
     case value.v_tru: { left, constructor },
     case value.v_fls: { right, constructor },
-    /- value.v_abs, value.v_const, value.v_pair -/
+    /- value.v_abs, value.v_const, value.v_pair, value.v_unit -/
     repeat { cases ht },
 end
 
@@ -18,7 +18,7 @@ lemma cannonical_forms_fun {t T₁ T₂}
 begin
   cases v,
     case value.v_abs : x T t { existsi x, existsi T, existsi t, reflexivity },
-    /- value.v_const, value.v_tru, value.v_fls, value.v_pair -/
+    /- value.v_const, value.v_tru, value.v_fls, value.v_pair, value.v_unit -/
     repeat { cases ht },
 end
 
@@ -28,7 +28,7 @@ lemma cannonical_forms_nat {t}
 begin
   cases v,
     case value.v_const: { existsi _, reflexivity },
-    /- value.v_abs, value.v_tru, value.v_fls, value.v_pair -/
+    /- value.v_abs, value.v_tru, value.v_fls, value.v_pair, value.v_unit -/
     repeat { cases ht },
 end
 
@@ -38,7 +38,17 @@ lemma cannonical_forms_pair {t T₁ T₂}
 begin
   cases v,
     case value.v_pair: { existsi _, existsi _, reflexivity },
-    /- value.v_abs, value.v_const, value.v_tru, value.v_fls -/
+    /- value.v_abs, value.v_const, value.v_tru, value.v_fls, value.v_unit -/
+    repeat { cases ht },
+end
+
+lemma cannonical_forms_unit {t}
+  (ht : has_type context.empty t ty.unit) (v : value t) :
+  t = tm.unit :=
+begin
+  cases v,
+    case value.v_unit: { reflexivity },
+    /- value.v_abs, value.v_const, value.v_tru, value.v_fls, value.v_pair -/
     repeat { cases ht },
 end
 
@@ -409,10 +419,13 @@ begin
       intros _ afi,
       exact f (appears_free_in.afi_snd afi),
     },
-    /- has_type.t_const, has_type.t_tru, has_type.t_fls -/
+    /- has_type.t_const, has_type.t_tru, has_type.t_fls, has_type.t_unit -/
     repeat {
       intros,
-      exact has_type.t_const <|> exact has_type.t_tru <|> exact has_type.t_fls
+          exact has_type.t_const
+      <|> exact has_type.t_tru
+      <|> exact has_type.t_fls
+      <|> exact has_type.t_unit
     },
 end
 
@@ -535,7 +548,10 @@ begin
       intros _ _ ht_t _,
       cases ht_t,
       simp [subst],
-      exact has_type.t_const <|> exact has_type.t_tru <|> exact has_type.t_fls,
+          exact has_type.t_const
+      <|> exact has_type.t_tru
+      <|> exact has_type.t_fls
+      <|> exact has_type.t_unit
     },
 end
 

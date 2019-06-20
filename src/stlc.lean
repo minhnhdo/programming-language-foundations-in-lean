@@ -6,6 +6,7 @@ inductive ty : Type
 | arrow : ty -> ty -> ty
 | nat : ty
 | prod : ty -> ty -> ty
+| unit : ty
 
 open ty
 
@@ -25,6 +26,7 @@ inductive tm : Type
 | pair : tm -> tm -> tm
 | fst : tm -> tm
 | snd : tm -> tm
+| unit : tm
 
 open tm
 
@@ -40,6 +42,7 @@ inductive value : tm -> Prop
 | v_tru : value tru
 | v_fls : value fls
 | v_pair {t₁ t₂} : value t₁ -> value t₂ -> value (pair t₁ t₂)
+| v_unit : value unit
 
 open value
 
@@ -59,6 +62,7 @@ def subst (x : string) (s : tm) : tm -> tm
 | (pair t₁ t₂) := pair (subst t₁) (subst t₂)
 | (fst t) := fst (subst t)
 | (snd t) := snd (subst t)
+| unit := unit
 
 notation `[` x `:=` s `]` t := subst x s t
 
@@ -91,6 +95,7 @@ inductive substi (s : tm) (x : string) : tm -> tm -> Prop
     substi t₁ t₁' -> substi t₂ t₂' -> substi (pair t₁ t₂) (pair t₁' t₂')
 | s_fst {t t'} : substi t t' -> substi (fst t) (fst t')
 | s_snd {t t'} : substi t t' -> substi (snd t) (snd t')
+| s_unit : substi unit unit
 
 theorem substi_correct : ∀ x s t t', ([x:=s]t) = t' ↔ substi s x t t' :=
 begin
@@ -128,7 +133,8 @@ begin
       },
       case tm.pair: { apply substi.s_pair, repeat { assumption } },
       case tm.fst: { apply substi.s_fst, assumption },
-      case tm.snd: { apply substi.s_snd, assumption } },
+      case tm.snd: { apply substi.s_snd, assumption },
+      case tm.unit: { apply substi.s_unit } },
   { intro sub,
     induction sub,
     repeat {
@@ -242,6 +248,7 @@ inductive has_type : context -> tm -> ty -> Prop
     has_type gamma t (prod T₁ T₂) -> has_type gamma (fst t) T₁
 | t_snd {gamma t T₁ T₂} :
     has_type gamma t (prod T₁ T₂) -> has_type gamma (snd t) T₂
+| t_unit {gamma} : has_type gamma unit unit
 
 open has_type
 
