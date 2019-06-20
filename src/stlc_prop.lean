@@ -612,9 +612,7 @@ begin
       cases s,
         case step.st_let: { exact has_type.t_let (ih₁ h s_a) ht₂ },
         case step.st_letvalue: {
-          rewrite <-h,
           rewrite <-h at ht₁,
-          rewrite <-h at ht₂,
           exact substitution_preserves_typing ht₂ ht₁,
         },
     },
