@@ -709,16 +709,11 @@ begin
       rewrite ih₁ ht'_a,
       rewrite ih₂ ht'_a_1,
     },
-    case has_type.t_fst: _ _ _ _ _ ih {
+    /- has_type.t_fst, has_type.t_snd -/
+    repeat {
       intros _ ht',
       cases ht',
-      cases ih ht'_a,
-      reflexivity,
-    },
-    case has_type.t_snd: _ _ _ _ _ ih {
-      intros _ ht',
-      cases ht',
-      cases ih ht'_a,
+      cases ht_ih ht'_a,
       reflexivity,
     },
     /- has_type.t_const, has_type.t_prd, has_type.t_scc, has_type.t_mlt,
