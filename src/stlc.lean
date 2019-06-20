@@ -5,6 +5,7 @@ inductive ty : Type
 | bool : ty
 | arrow : ty -> ty -> ty
 | nat : ty
+| prod : ty -> ty -> ty
 
 open ty
 
@@ -21,6 +22,9 @@ inductive tm : Type
 | fls : tm
 | tst : tm -> tm -> tm -> tm
 | let_ : string -> tm -> tm -> tm
+| pair : tm -> tm -> tm
+| fst : tm -> tm
+| snd : tm -> tm
 
 open tm
 
@@ -35,6 +39,7 @@ inductive value : tm -> Prop
 | v_const {n} : value (const n)
 | v_tru : value tru
 | v_fls : value fls
+| v_pair {t₁ t₂} : value t₁ -> value t₂ -> value (pair t₁ t₂)
 
 open value
 
@@ -51,6 +56,9 @@ def subst (x : string) (s : tm) : tm -> tm
 | fls := fls
 | (tst t1 t2 t3) := tst (subst t1) (subst t2) (subst t3)
 | (let_ y t₁ t₂) := let_ y (subst t₁) (if x = y then t₂ else (subst t₂))
+| (pair t₁ t₂) := pair (subst t₁) (subst t₂)
+| (fst t) := fst (subst t)
+| (snd t) := snd (subst t)
 
 notation `[` x `:=` s `]` t := subst x s t
 
@@ -79,6 +87,10 @@ inductive substi (s : tm) (x : string) : tm -> tm -> Prop
     substi t₁ t₁' ->
     substi t₂ t₂' ->
     substi (let_ y t₁ t₂) (let_ y t₁' t₂')
+| s_pair {t₁ t₁' t₂ t₂' } :
+    substi t₁ t₁' -> substi t₂ t₂' -> substi (pair t₁ t₂) (pair t₁' t₂')
+| s_fst {t t'} : substi t t' -> substi (fst t) (fst t')
+| s_snd {t t'} : substi t t' -> substi (snd t) (snd t')
 
 theorem substi_correct : ∀ x s t t', ([x:=s]t) = t' ↔ substi s x t t' :=
 begin
@@ -113,7 +125,10 @@ begin
         by_cases h : x = y,
           { simp [h], rewrite h at ih₁, exact substi.s_let1 ih₁ },
           { simp [h], exact substi.s_let2 (ne.symm h) ih₁ ih₂, },
-      } },
+      },
+      case tm.pair: { apply substi.s_pair, repeat { assumption } },
+      case tm.fst: { apply substi.s_fst, assumption },
+      case tm.snd: { apply substi.s_snd, assumption } },
   { intro sub,
     induction sub,
     repeat {
@@ -143,6 +158,13 @@ inductive step : tm -> tm -> Prop
 | st_tst {t₁ t₁' t₂ t₃} : step t₁ t₁' -> step (tst t₁ t₂ t₃) (tst t₁' t₂ t₃)
 | st_let {t₁ t₁' x t₂} : step t₁ t₁' -> step (let_ x t₁ t₂) (let_ x t₁' t₂)
 | st_letvalue {x t₁ t₂} : value t₁ -> step (let_ x t₁ t₂) ([x:=t₁]t₂)
+| st_pair1 {t₁ t₁' t₂} : step t₁ t₁' -> step (pair t₁ t₂) (pair t₁' t₂)
+| st_pair2 {t₁ t₂ t₂'} :
+    value t₁ -> step t₂ t₂' -> step (pair t₁ t₂) (pair t₁ t₂')
+| st_fstpair {t₁ t₂} : step (fst (pair t₁ t₂)) t₁
+| st_fst {t t'} : step t t' -> step (fst t) (fst t')
+| st_sndpair {t₁ t₂} : step (snd (pair t₁ t₂)) t₂
+| st_snd {t t'} : step t t' -> step (snd t) (snd t')
 
 open step
 
@@ -212,6 +234,14 @@ inductive has_type : context -> tm -> ty -> Prop
     has_type gamma t₁ T₁ ->
     has_type (partial_map.update x T₁ gamma) t₂ T₂ ->
     has_type gamma (let_ x t₁ t₂) T₂
+| t_pair {gamma t₁ T₁ t₂ T₂} :
+    has_type gamma t₁ T₁ ->
+    has_type gamma t₂ T₂ ->
+    has_type gamma (pair t₁ t₂) (prod T₁ T₂)
+| t_fst {gamma t T₁ T₂} :
+    has_type gamma t (prod T₁ T₂) -> has_type gamma (fst t) T₁
+| t_snd {gamma t T₁ T₂} :
+    has_type gamma t (prod T₁ T₂) -> has_type gamma (snd t) T₂
 
 open has_type
 
@@ -286,6 +316,10 @@ inductive appears_free_in (x : string) : tm -> Prop
 | afi_let1 {y t₁ t₂} : appears_free_in t₁ -> appears_free_in (let_ y t₁ t₂)
 | afi_let2 {y t₁ t₂} :
     y ≠ x -> appears_free_in t₂ -> appears_free_in (let_ y t₁ t₂)
+| afi_pair1 {t₁ t₂} : appears_free_in t₁ -> appears_free_in (pair t₁ t₂)
+| afi_pair2 {t₁ t₂} : appears_free_in t₂ -> appears_free_in (pair t₁ t₂)
+| afi_fst {t} : appears_free_in t -> appears_free_in (fst t)
+| afi_snd {t} : appears_free_in t -> appears_free_in (snd t)
 
 def closed (t : tm) := ∀x, ¬appears_free_in x t
 
