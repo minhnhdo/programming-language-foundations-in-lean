@@ -642,7 +642,17 @@ end
 lemma subject_expansion :
   ∃t t' T,
   (t -+> t') -> has_type context.empty t' T -> ¬has_type context.empty t T :=
-by { existsi tm.tru, existsi tm.fls, existsi ty.bool, intro s, cases s }
+begin
+  existsi tm.app (tm.abs "x" (ty.arrow ty.bool ty.bool) (tm.var "x")) tm.tru,
+  existsi subst "x" tm.tru (tm.var "x"),
+  existsi ty.bool,
+  intros s ht' ht,
+  cases ht,
+  cases ht_a,
+  cases ht_a_a,
+  injection ht_a_a_a with h,
+  cases h,
+end
 
 lemma soundness {t t' T} (ht : has_type context.empty t T) (ss : t -+>* t') :
   ¬stuck t' :=
