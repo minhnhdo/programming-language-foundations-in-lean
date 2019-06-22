@@ -8,6 +8,7 @@ inductive ty : Type
 | prod : ty -> ty -> ty
 | unit : ty
 | sum : ty -> ty -> ty
+| list : ty -> ty
 
 open ty
 
@@ -31,6 +32,9 @@ inductive tm : Type
 | inl : ty -> tm -> tm
 | inr : ty -> tm -> tm
 | scase : tm -> string -> tm -> string -> tm -> tm
+| nil : ty -> tm
+| cons : tm -> tm -> tm
+| lcase : tm -> tm -> string -> string -> tm -> tm
 
 open tm
 
@@ -49,6 +53,8 @@ inductive value : tm -> Prop
 | v_unit : value unit
 | v_inl {t T} : value t -> value (inl T t)
 | v_inr {t T} : value t -> value (inr T t)
+| v_nil {T} : value (nil T)
+| v_cons {t₁ t₂} : value t₁ -> value t₂ -> value (cons t₁ t₂)
 
 open value
 
@@ -74,6 +80,11 @@ def subst (x : string) (s : tm) : tm -> tm
 | (scase t y t₁ z t₂) := scase (subst t)
                                y (if x = y then t₁ else (subst t₁))
                                z (if x = z then t₂ else (subst t₂))
+| (nil T) := nil T
+| (cons t₁ t₂) := cons (subst t₁) (subst t₂)
+| (lcase t t₁ y z t₂) := lcase (subst t)
+                               (subst t₁)
+                               y z (if x = y ∨ x = z then t₂ else subst t₂)
 
 notation `[` x `:=` s `]` t := subst x s t
 
@@ -128,6 +139,30 @@ inductive substi (s : tm) (x : string) : tm -> tm -> Prop
     substi t₁ t₁' ->
     substi t₂ t₂' ->
     substi (scase t y t₁ z t₂) (scase t' y t₁' z t₂')
+| s_nil {T} : substi (nil T) (nil T)
+| s_cons {t₁ t₁' t₂ t₂'} :
+    substi t₁ t₁' -> substi t₂ t₂' -> substi (cons t₁ t₂) (cons t₁' t₂')
+| s_lcase1 {t t' t₁ t₁' t₂} :
+    substi t t' ->
+    substi t₁ t₁' ->
+    substi (lcase t t₁ x x t₂) (lcase t' t₁' x x t₂)
+| s_lcase2 {t t' t₁ t₁' y t₂} :
+    y ≠ x ->
+    substi t t' ->
+    substi t₁ t₁' ->
+    substi (lcase t t₁ y x t₂) (lcase t' t₁' y x t₂)
+| s_lcase3 {t t' t₁ t₁' z t₂} :
+    z ≠ x ->
+    substi t t' ->
+    substi t₁ t₁' ->
+    substi (lcase t t₁ x z t₂) (lcase t' t₁' x z t₂)
+| s_lcase4 {t t' t₁ t₁' y z t₂ t₂'} :
+    y ≠ x ->
+    z ≠ x ->
+    substi t t' ->
+    substi t₁ t₁' ->
+    substi t₂ t₂' ->
+    substi (lcase t t₁ y z t₂) (lcase t' t₁' y z t₂')
 
 theorem substi_correct : ∀ x s t t', ([x:=s]t) = t' ↔ substi s x t t' :=
 begin
@@ -190,14 +225,30 @@ begin
               { simp [hxy, hxz],
                 exact
                   substi.s_scase4 (ne.symm hxy) (ne.symm hxz) ih ih₁ ih₂ } },
+      },
+      case tm.nil: { apply substi.s_nil },
+      case tm.cons: { apply substi.s_cons, repeat { assumption } },
+      case tm.lcase: _ _ y z _ ih ih₁ ih₂ {
+        unfold subst,
+        by_cases hxy : x = y,
+          { by_cases hxz : x = z,
+              { simp [*],
+                rewrite <-hxy,
+                rewrite <-hxz,
+                exact substi.s_lcase1 ih ih₁ },
+              { simp [*],
+                rewrite <-hxy,
+                exact substi.s_lcase3 (ne.symm hxz) ih ih₁ } },
+          { by_cases hxz : x = z,
+              { simp [*],
+                rewrite <-hxz,
+                exact substi.s_lcase2 (ne.symm hxy) ih ih₁ },
+              { simp [*],
+                exact substi.s_lcase4 (ne.symm hxy) (ne.symm hxz) ih ih₁ ih₂ } }
       } },
   { intro sub,
     induction sub,
-    repeat {
-      simp [*, subst];
-      /- s_var2, s_abs2, s_let2, s_scase4 -/ simp [ne.symm sub_a];
-      /- s_scase4 -/ simp [ne.symm sub_a_1]
-    } },
+    repeat { simp [*, subst]; simp [ne.symm sub_a]; simp [ne.symm sub_a_1] } },
 end
 
 inductive step : tm -> tm -> Prop
@@ -234,6 +285,16 @@ inductive step : tm -> tm -> Prop
     step t t' -> step (scase t y t₁ z t₂) (scase t' y t₁ z t₂)
 | st_scaseinl {T t y t₁ z t₂} : step (scase (inl T t) y t₁ z t₂) ([y:=t]t₁)
 | st_scaseinr {T t y t₁ z t₂} : step (scase (inr T t) y t₁ z t₂) ([z:=t]t₂)
+| st_cons1 {t₁ t₁' t₂} : step t₁ t₁' -> step (cons t₁ t₂) (cons t₁' t₂)
+| st_cons2 {t₁ t₂ t₂'} :
+    value t₁ -> step t₂ t₂' -> step (cons t₁ t₂) (cons t₁ t₂')
+| st_lcase {t t' t₁ y z t₂} :
+    step t t' -> step (lcase t t₁ y z t₂) (lcase t' t₁ y z t₂)
+| st_lcasenil {T t₁ y z t₂} : step (lcase (nil T) t₁ y z t₂) t₁
+| st_lcasecons {t_h t_t t₁ y z t₂} :
+    value t_h ->
+    value t_t ->
+    step (lcase (cons t_h t_t) t₁ y z t₂) ([y:=t_h][z:=t_t]t₂)
 
 open step
 
@@ -321,6 +382,18 @@ inductive has_type : context -> tm -> ty -> Prop
     has_type (partial_map.update y T₁ gamma) t₁ T ->
     has_type (partial_map.update z T₂ gamma) t₂ T ->
     has_type gamma (scase t y t₁ z t₂) T
+| t_nil {gamma T} : has_type gamma (nil T) (list T)
+| t_cons {gamma t₁ t₂ T} :
+    has_type gamma t₁ T ->
+    has_type gamma t₂ (list T) ->
+    has_type gamma (cons t₁ t₂) (list T)
+| t_lcase {gamma t T t₁ T' y z t₂} :
+    has_type gamma t (list T) ->
+    has_type gamma t₁ T' ->
+    has_type (partial_map.update z (list T) $ partial_map.update y T gamma)
+             t₂
+             T' ->
+    has_type gamma (lcase t t₁ y z t₂) T'
 
 open has_type
 
@@ -407,6 +480,14 @@ inductive appears_free_in (x : string) : tm -> Prop
     y ≠ x -> appears_free_in t₁ -> appears_free_in (scase t y t₁ z t₂)
 | afi_scase3 {t y t₁ z t₂} :
     z ≠ x -> appears_free_in t₂ -> appears_free_in (scase t y t₁ z t₂)
+| afi_cons1 {t₁ t₂} : appears_free_in t₁ -> appears_free_in (cons t₁ t₂)
+| afi_cons2 {t₁ t₂} : appears_free_in t₂ -> appears_free_in (cons t₁ t₂)
+| afi_lcase1 {t t₁ y z t₂} :
+    appears_free_in t -> appears_free_in (lcase t t₁ y z t₂)
+| afi_lcase2 {t t₁ y z t₂} :
+    appears_free_in t₁ -> appears_free_in (lcase t t₁ y z t₂)
+| afi_lcase3 {t t₁ y z t₂} :
+    y ≠ x -> z ≠ x -> appears_free_in t₂ -> appears_free_in (lcase t t₁ y z t₂)
 
 def closed (t : tm) := ∀x, ¬appears_free_in x t
 
