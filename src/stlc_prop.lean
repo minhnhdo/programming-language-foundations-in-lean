@@ -583,7 +583,7 @@ begin
           intros _ afi,
           exact f (appears_free_in.afi_cons2 afi) },
     },
-    case has_type.t_lcase: _ _ T _ _ y z _ _ _ _ ih ih₁ ih₂ {
+    case has_type.t_lcase: _ _ _ _ _ y z _ _ _ _ ih ih₁ ih₂ {
       intros _ f,
       apply has_type.t_lcase,
         { apply ih,
@@ -818,10 +818,14 @@ begin
                 at ht₂,
               exact ih₂ ht₂ ht_v } },
     },
+    case tm.fix: _ ih {
+      intros _ _ ht_t ht_v,
+      cases ht_t,
+      exact has_type.t_fix (ih ht_t_a ht_v) ,
+    },
     repeat {
       intros _ _ ht_t _,
       cases ht_t,
-      simp [subst],
           exact has_type.t_const
       <|> exact has_type.t_tru
       <|> exact has_type.t_fls
