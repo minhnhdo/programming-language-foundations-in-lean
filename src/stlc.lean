@@ -35,6 +35,7 @@ inductive tm : Type
 | nil : ty -> tm
 | cons : tm -> tm -> tm
 | lcase : tm -> tm -> string -> string -> tm -> tm
+| fix : tm -> tm
 
 open tm
 
@@ -85,6 +86,7 @@ def subst (x : string) (s : tm) : tm -> tm
 | (lcase t t₁ y z t₂) := lcase (subst t)
                                (subst t₁)
                                y z (if x = y ∨ x = z then t₂ else subst t₂)
+| (fix t) := fix (subst t)
 
 notation `[` x `:=` s `]` t := subst x s t
 
@@ -163,6 +165,7 @@ inductive substi (s : tm) (x : string) : tm -> tm -> Prop
     substi t₁ t₁' ->
     substi t₂ t₂' ->
     substi (lcase t t₁ y z t₂) (lcase t' t₁' y z t₂')
+| s_fix {t t'} : substi t t' -> substi (fix t) (fix t')
 
 theorem substi_correct : ∀ x s t t', ([x:=s]t) = t' ↔ substi s x t t' :=
 begin
@@ -245,7 +248,8 @@ begin
                 exact substi.s_lcase2 (ne.symm hxy) ih ih₁ },
               { simp [*],
                 exact substi.s_lcase4 (ne.symm hxy) (ne.symm hxz) ih ih₁ ih₂ } }
-      } },
+      },
+      case tm.fix: _ ih { exact substi.s_fix ih } },
   { intro sub,
     induction sub,
     repeat { simp [*, subst]; simp [ne.symm sub_a]; simp [ne.symm sub_a_1] } },
@@ -295,6 +299,8 @@ inductive step : tm -> tm -> Prop
     value t_h ->
     value t_t ->
     step (lcase (cons t_h t_t) t₁ y z t₂) ([y:=t_h][z:=t_t]t₂)
+| st_fix {t t'} : step t t' -> step (fix t) (fix t')
+| st_fixabs {x T t} : step (fix (abs x T t)) ([x:=fix (abs x T t)]t)
 
 open step
 
@@ -394,6 +400,7 @@ inductive has_type : context -> tm -> ty -> Prop
              t₂
              T' ->
     has_type gamma (lcase t t₁ y z t₂) T'
+| t_fix {gamma t T} : has_type gamma t (arrow T T) -> has_type gamma (fix t) T
 
 open has_type
 
@@ -488,6 +495,7 @@ inductive appears_free_in (x : string) : tm -> Prop
     appears_free_in t₁ -> appears_free_in (lcase t t₁ y z t₂)
 | afi_lcase3 {t t₁ y z t₂} :
     y ≠ x -> z ≠ x -> appears_free_in t₂ -> appears_free_in (lcase t t₁ y z t₂)
+| afi_fix {t} : appears_free_in t -> appears_free_in (fix t)
 
 def closed (t : tm) := ∀x, ¬appears_free_in x t
 

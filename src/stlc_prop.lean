@@ -218,6 +218,16 @@ begin
                 exact step.st_lcasecons v_h v_t } },
         { right, existsi _, exact step.st_lcase s },
     },
+    case has_type.t_fix: _ _ _ ht ih {
+      rcases ih h with v | ⟨_, s⟩,
+        { rewrite <-h at ht,
+          rcases cannonical_forms_fun ht v with ⟨_, _, h'⟩,
+          rewrite h',
+          right,
+          existsi _,
+          exact step.st_fixabs },
+        { right, existsi _, exact step.st_fix s },
+    },
     repeat { left, constructor },
 end
 
@@ -383,6 +393,17 @@ begin
                 existsi _,
                 exact step.st_lcasecons v_h v_t } },
         { right, existsi _, exact step.st_lcase s },
+    },
+    case tm.fix: _ ih {
+      intros _ ht,
+      cases ht,
+      rcases ih ht_a with v | ⟨_, s⟩,
+        { rcases cannonical_forms_fun ht_a v with ⟨_, _, h'⟩,
+          rewrite h',
+          right,
+          existsi _,
+          exact step.st_fixabs },
+        { right, existsi _, exact step.st_fix s },
     },
     repeat { intros, left, constructor },
 end
@@ -600,6 +621,13 @@ begin
                 { simp [symm hzx, partial_map.update, total_map.update] },
                 { simp [hyx, hzx, partial_map.update, total_map.update],
                   exact f (appears_free_in.afi_lcase3 hyx hzx afi) } } },
+    },
+    case has_type.t_fix: _ _ _ _ ih {
+      intros _ f,
+      apply has_type.t_fix,
+      apply ih,
+      intros _ afi,
+      exact f (appears_free_in.afi_fix afi),
     },
     repeat {
       intros,
@@ -958,6 +986,16 @@ begin
           exact substitution_preserves_typing
                   (substitution_preserves_typing ht₂ ht_a_1)
                   ht_a },
+    },
+    case has_type.t_fix: _ _ _ ht ih {
+      intros _ s,
+      cases s,
+        { exact has_type.t_fix (ih h s_a) },
+        { cases ht,
+          rewrite <-h,
+          rewrite <-h at ht,
+          rewrite <-h at ht_a,
+          exact substitution_preserves_typing ht_a (has_type.t_fix ht) },
     },
     repeat { intros _ s, cases s },
 end
