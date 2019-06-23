@@ -502,3 +502,402 @@ inductive appears_free_in (x : string) : tm -> Prop
 def closed (t : tm) := ∀x, ¬appears_free_in x t
 
 def stuck (t : tm) := normal_form step t ∧ ¬value t
+
+def num_test : tm :=
+tst (iszro (prd (scc (prd (mlt (const 2) (const 0))))))
+  (const 5)
+  (const 6)
+
+example : has_type context.empty num_test nat :=
+t_tst (t_iszro (t_prd (t_scc (t_prd (t_mlt t_const t_const))))) t_const t_const
+
+example : num_test -+>* const 5 :=
+multi_step (st_tst (st_iszro (st_prd (st_scc (st_prd st_mltnm))))) $
+multi_step (st_tst (st_iszro (st_prd (st_scc st_prdzro)))) $
+multi_step (st_tst (st_iszro (st_prd st_sccn))) $
+multi_step (st_tst (st_iszro st_prdnzr)) $
+multi_step (st_tst st_iszrozro) $
+multi_step st_tsttru $
+multi_refl
+
+def prod_test : tm :=
+snd (fst (pair (pair (const 5) (const 6)) (const 7)))
+
+example : has_type context.empty prod_test nat :=
+t_snd (t_fst (t_pair (t_pair t_const t_const) t_const))
+
+example : prod_test -+>* const 6 :=
+multi_step (st_snd (st_fstpair (v_pair v_const v_const) v_const)) $
+multi_step (st_sndpair v_const v_const) $
+multi_refl
+
+def let_test : tm :=
+let_ "x" (prd (const 6))
+  (scc (var "x"))
+
+example : has_type context.empty let_test nat :=
+t_let (t_prd t_const) (t_scc (t_var rfl))
+
+example : let_test -+>* const 6 :=
+multi_step (st_let st_prdnzr) $
+multi_step (st_letvalue v_const) $
+multi_step st_sccn $
+multi_refl
+
+def sum_test_1 : tm :=
+scase (inl nat (const 5))
+  "x" (var "x")
+  "y" (var "y")
+
+example : has_type context.empty sum_test_1 nat :=
+t_scase (t_inl t_const) (t_var rfl) (t_var rfl)
+
+example : sum_test_1 -+>* const 5 :=
+multi_step (st_scaseinl v_const) $
+multi_refl
+
+def sum_test_2 : tm :=
+let_ "processSum" (abs "x" (sum nat nat)
+                    (scase (var "x")
+                      "n" (var "n")
+                      "n" (tst (iszro (var "n")) (const 1) (const 0))))
+  (pair (app (var "processSum") (inl nat (const 5)))
+        (app (var "processSum") (inr nat (const 5))))
+
+example : has_type context.empty sum_test_2 (prod nat nat) :=
+t_let (t_abs (t_scase (t_var rfl)
+                      (t_var rfl)
+                      (t_tst (t_iszro (t_var rfl)) t_const t_const)))
+  (t_pair (t_app (t_var rfl) (t_inl t_const))
+          (t_app (t_var rfl) (t_inr t_const)))
+
+example : sum_test_2 -+>* pair (const 5) (const 0) :=
+multi_step (st_letvalue v_abs) $
+multi_step (st_pair1 (st_appabs (v_inl v_const))) $
+multi_step (st_pair1 (st_scaseinl v_const)) $
+multi_step (st_pair2 v_const (st_appabs (v_inr v_const))) $
+multi_step (st_pair2 v_const (st_scaseinr v_const)) $
+multi_step (st_pair2 v_const (st_tst st_iszronzr)) $
+multi_step (st_pair2 v_const st_tstfls) $
+multi_refl
+
+def list_test : tm :=
+let_ "l" (cons (const 5) (cons (const 6) (nil nat)))
+  (lcase (var "l")
+    (const 0)
+    "x" "y" (mlt (var "x") (var "x")))
+
+example : has_type context.empty list_test nat :=
+t_let (t_cons t_const (t_cons t_const t_nil))
+      (t_lcase (t_var rfl) t_const (t_mlt (t_var rfl) (t_var rfl)))
+
+example : list_test -+>* const 25 :=
+multi_step (st_letvalue (v_cons v_const (v_cons v_const v_nil))) $
+multi_step (st_lcasecons v_const (v_cons v_const v_nil)) $
+multi_step st_mltnm $
+multi_refl
+
+def fix_fact : tm :=
+fix (abs "f" (arrow nat nat)
+      (abs "a" nat
+        (tst (iszro (var "a"))
+          (const 1)
+          (mlt (var "a") (app (var "f") (prd (var "a")))))))
+
+example : has_type context.empty fix_fact (arrow nat nat) :=
+t_fix (t_abs (t_abs (t_tst (t_iszro (t_var rfl))
+                           t_const
+                           (t_mlt (t_var rfl)
+                                  (t_app (t_var rfl) (t_prd (t_var rfl)))))))
+
+example : app fix_fact (const 4) -+>* const 24 :=
+multi_step (st_app1 st_fixabs) $
+multi_step (st_appabs v_const) $
+multi_step (st_tst st_iszronzr) $
+multi_step st_tstfls $
+multi_step (st_mlt2 v_const (st_app1 st_fixabs)) $
+multi_step (st_mlt2 v_const (st_app2 v_abs st_prdnzr)) $
+multi_step (st_mlt2 v_const (st_appabs v_const)) $
+multi_step (st_mlt2 v_const (st_tst st_iszronzr)) $
+multi_step (st_mlt2 v_const st_tstfls) $
+multi_step (st_mlt2 v_const (st_mlt2 v_const (st_app1 st_fixabs))) $
+multi_step (st_mlt2 v_const (st_mlt2 v_const (st_app2 v_abs st_prdnzr))) $
+multi_step (st_mlt2 v_const (st_mlt2 v_const (st_appabs v_const))) $
+multi_step (st_mlt2 v_const (st_mlt2 v_const (st_tst st_iszronzr))) $
+multi_step (st_mlt2 v_const (st_mlt2 v_const st_tstfls)) $
+multi_step (st_mlt2
+             v_const
+             (st_mlt2 v_const (st_mlt2 v_const (st_app1 st_fixabs)))) $
+multi_step (st_mlt2
+             v_const
+             (st_mlt2 v_const (st_mlt2 v_const (st_app2 v_abs st_prdnzr)))) $
+multi_step (st_mlt2
+             v_const
+             (st_mlt2 v_const (st_mlt2 v_const (st_appabs v_const)))) $
+multi_step (st_mlt2
+             v_const
+             (st_mlt2 v_const (st_mlt2 v_const (st_tst st_iszronzr)))) $
+multi_step (st_mlt2
+             v_const
+             (st_mlt2 v_const (st_mlt2 v_const st_tstfls))) $
+multi_step (st_mlt2
+             v_const
+             (st_mlt2
+               v_const
+               (st_mlt2 v_const (st_mlt2 v_const (st_app1 st_fixabs))))) $
+multi_step (st_mlt2
+             v_const
+             (st_mlt2
+               v_const
+               (st_mlt2 v_const (st_mlt2 v_const (st_app2 v_abs st_prdnzr))))) $
+multi_step (st_mlt2
+             v_const
+             (st_mlt2
+               v_const
+               (st_mlt2 v_const (st_mlt2 v_const (st_appabs v_const))))) $
+multi_step (st_mlt2
+             v_const
+             (st_mlt2
+               v_const
+               (st_mlt2 v_const (st_mlt2 v_const (st_tst st_iszrozro))))) $
+multi_step (st_mlt2
+             v_const
+             (st_mlt2 v_const (st_mlt2 v_const (st_mlt2 v_const st_tsttru)))) $
+multi_step (st_mlt2 v_const (st_mlt2 v_const (st_mlt2 v_const st_mltnm))) $
+multi_step (st_mlt2 v_const (st_mlt2 v_const st_mltnm)) $
+multi_step (st_mlt2 v_const st_mltnm) $
+multi_step st_mltnm $
+multi_refl
+
+def fix_map : tm :=
+abs "g" (arrow nat nat)
+  (fix (abs "f" (arrow (list nat) (list nat))
+         (abs "l" (list nat)
+           (lcase (var "l")
+             (nil nat)
+             "a" "l" (cons (app (var "g") (var "a"))
+                           (app (var "f") (var "l")))))))
+
+example : has_type context.empty
+                   fix_map
+                   (arrow (arrow nat nat) (arrow (list nat) (list nat))) :=
+t_abs (t_fix (t_abs (t_abs (t_lcase (t_var rfl)
+                                    t_nil
+                                    (t_cons (t_app (t_var rfl) (t_var rfl))
+                                            (t_app (t_var rfl) (t_var rfl)))))))
+
+example :    app (app fix_map (abs "a" nat (scc (var "a"))))
+                 (cons (const 1) (cons (const 2) (nil nat)))
+        -+>* cons (const 2) (cons (const 3) (nil nat)) :=
+multi_step (st_app1 (st_appabs v_abs)) $
+multi_step (st_app1 st_fixabs) $
+multi_step (st_appabs (v_cons v_const (v_cons v_const v_nil))) $
+multi_step (st_lcasecons v_const (v_cons v_const v_nil)) $
+multi_step (st_cons1 (st_appabs v_const)) $
+multi_step (st_cons1 st_sccn) $
+multi_step (st_cons2 v_const (st_app1 st_fixabs)) $
+multi_step (st_cons2 v_const (st_appabs (v_cons v_const v_nil))) $
+multi_step (st_cons2 v_const (st_lcasecons v_const v_nil)) $
+multi_step (st_cons2 v_const (st_cons1 (st_appabs v_const))) $
+multi_step (st_cons2 v_const (st_cons1 st_sccn)) $
+multi_step (st_cons2 v_const (st_cons2 v_const (st_app1 st_fixabs))) $
+multi_step (st_cons2 v_const (st_cons2 v_const (st_appabs v_nil))) $
+multi_step (st_cons2 v_const (st_cons2 v_const st_lcasenil)) $
+multi_refl
+
+def fix_equal : tm :=
+fix (abs "eq" (arrow nat (arrow nat nat))
+      (abs "m" nat
+        (abs "n" nat
+          (tst (iszro (var "m"))
+            (tst (iszro (var "n")) (const 1) (const 0))
+            (tst (iszro (var "n"))
+              (const 0)
+              (app (app (var "eq") (prd (var "m")))
+                   (prd (var "n"))))))))
+
+example : has_type context.empty fix_equal (arrow nat (arrow nat nat)) :=
+t_fix (t_abs (t_abs (t_abs (t_tst (t_iszro (t_var rfl))
+                             (t_tst (t_iszro (t_var rfl)) t_const t_const)
+                             (t_tst (t_iszro (t_var rfl))
+                               t_const
+                               (t_app (t_app (t_var rfl) (t_prd (t_var rfl)))
+                                      (t_prd (t_var rfl))))))))
+
+example : app (app fix_equal (const 4)) (const 4) -+>* const 1 :=
+multi_step (st_app1 (st_app1 st_fixabs)) $
+multi_step (st_app1 (st_appabs v_const)) $
+multi_step (st_appabs v_const) $
+multi_step (st_tst st_iszronzr) $
+multi_step st_tstfls $
+multi_step (st_tst st_iszronzr) $
+multi_step st_tstfls $
+multi_step (st_app1 (st_app1 st_fixabs)) $
+multi_step (st_app1 (st_app2 v_abs st_prdnzr)) $
+multi_step (st_app1 (st_appabs v_const)) $
+multi_step (st_app2 v_abs st_prdnzr) $
+multi_step (st_appabs v_const) $
+multi_step (st_tst st_iszronzr) $
+multi_step st_tstfls $
+multi_step (st_tst st_iszronzr) $
+multi_step st_tstfls $
+multi_step (st_app1 (st_app1 st_fixabs)) $
+multi_step (st_app1 (st_app2 v_abs st_prdnzr)) $
+multi_step (st_app1 (st_appabs v_const)) $
+multi_step (st_app2 v_abs st_prdnzr) $
+multi_step (st_appabs v_const) $
+multi_step (st_tst st_iszronzr) $
+multi_step st_tstfls $
+multi_step (st_tst st_iszronzr) $
+multi_step st_tstfls $
+multi_step (st_app1 (st_app1 st_fixabs)) $
+multi_step (st_app1 (st_app2 v_abs st_prdnzr)) $
+multi_step (st_app1 (st_appabs v_const)) $
+multi_step (st_app2 v_abs st_prdnzr) $
+multi_step (st_appabs v_const) $
+multi_step (st_tst st_iszronzr) $
+multi_step st_tstfls $
+multi_step (st_tst st_iszronzr) $
+multi_step st_tstfls $
+multi_step (st_app1 (st_app1 st_fixabs)) $
+multi_step (st_app1 (st_app2 v_abs st_prdnzr)) $
+multi_step (st_app1 (st_appabs v_const)) $
+multi_step (st_app2 v_abs st_prdnzr) $
+multi_step (st_appabs v_const) $
+multi_step (st_tst st_iszrozro) $
+multi_step st_tsttru $
+multi_step (st_tst st_iszrozro) $
+multi_step st_tsttru $
+multi_refl
+
+example : app (app fix_equal (const 4)) (const 5) -+>* const 0 :=
+multi_step (st_app1 (st_app1 st_fixabs)) $
+multi_step (st_app1 (st_appabs v_const)) $
+multi_step (st_appabs v_const) $
+multi_step (st_tst st_iszronzr) $
+multi_step st_tstfls $
+multi_step (st_tst st_iszronzr) $
+multi_step st_tstfls $
+multi_step (st_app1 (st_app1 st_fixabs)) $
+multi_step (st_app1 (st_app2 v_abs st_prdnzr)) $
+multi_step (st_app1 (st_appabs v_const)) $
+multi_step (st_app2 v_abs st_prdnzr) $
+multi_step (st_appabs v_const) $
+multi_step (st_tst st_iszronzr) $
+multi_step st_tstfls $
+multi_step (st_tst st_iszronzr) $
+multi_step st_tstfls $
+multi_step (st_app1 (st_app1 st_fixabs)) $
+multi_step (st_app1 (st_app2 v_abs st_prdnzr)) $
+multi_step (st_app1 (st_appabs v_const)) $
+multi_step (st_app2 v_abs st_prdnzr) $
+multi_step (st_appabs v_const) $
+multi_step (st_tst st_iszronzr) $
+multi_step st_tstfls $
+multi_step (st_tst st_iszronzr) $
+multi_step st_tstfls $
+multi_step (st_app1 (st_app1 st_fixabs)) $
+multi_step (st_app1 (st_app2 v_abs st_prdnzr)) $
+multi_step (st_app1 (st_appabs v_const)) $
+multi_step (st_app2 v_abs st_prdnzr) $
+multi_step (st_appabs v_const) $
+multi_step (st_tst st_iszronzr) $
+multi_step st_tstfls $
+multi_step (st_tst st_iszronzr) $
+multi_step st_tstfls $
+multi_step (st_app1 (st_app1 st_fixabs)) $
+multi_step (st_app1 (st_app2 v_abs st_prdnzr)) $
+multi_step (st_app1 (st_appabs v_const)) $
+multi_step (st_app2 v_abs st_prdnzr) $
+multi_step (st_appabs v_const) $
+multi_step (st_tst st_iszrozro) $
+multi_step st_tsttru $
+multi_step (st_tst st_iszronzr) $
+multi_step st_tstfls $
+multi_refl
+
+def evenodd : tm :=
+let_ "evenodd" (fix (abs "eo" (prod (arrow nat nat) (arrow nat nat))
+                      (pair (abs "n" nat
+                              (tst (iszro (var "n"))
+                                (const 1)
+                                (app (snd (var "eo")) (prd (var "n")))))
+                            (abs "n" nat
+                              (tst (iszro (var "n"))
+                                (const 0)
+                                (app (fst (var "eo")) (prd (var "n"))))))))
+  (let_ "even" (fst (var "evenodd"))
+    (let_ "odd" (snd (var "evenodd"))
+      (pair (app (var "even") (const 3))
+            (app (var "even") (const 4)))))
+
+example : has_type context.empty evenodd (prod nat nat) :=
+t_let (t_fix
+        (t_abs
+          (t_pair (t_abs (t_tst (t_iszro (t_var rfl))
+                           t_const
+                           (t_app (t_snd (t_var rfl)) (t_prd (t_var rfl)))))
+                  (t_abs (t_tst (t_iszro (t_var rfl))
+                           t_const
+                           (t_app (t_fst (t_var rfl)) (t_prd (t_var rfl))))))))
+  (t_let (t_fst (t_var rfl))
+    (t_let (t_snd (t_var rfl))
+      (t_pair (t_app (t_var rfl) t_const)
+              (t_app (t_var rfl) t_const))))
+
+example : evenodd -+>* pair (const 0) (const 1) :=
+multi_step (st_let st_fixabs) $
+multi_step (st_letvalue (v_pair v_abs v_abs)) $
+multi_step (st_let (st_fstpair v_abs v_abs)) $
+multi_step (st_letvalue v_abs) $
+multi_step (st_let (st_sndpair v_abs v_abs)) $
+multi_step (st_letvalue v_abs) $
+multi_step (st_pair1 (st_appabs v_const)) $
+multi_step (st_pair1 (st_tst st_iszronzr)) $
+multi_step (st_pair1 st_tstfls) $
+multi_step (st_pair1 (st_app1 (st_snd st_fixabs))) $
+multi_step (st_pair1 (st_app1 (st_sndpair v_abs v_abs))) $
+multi_step (st_pair1 (st_app2 v_abs st_prdnzr)) $
+multi_step (st_pair1 (st_appabs v_const)) $
+multi_step (st_pair1 (st_tst st_iszronzr)) $
+multi_step (st_pair1 st_tstfls) $
+multi_step (st_pair1 (st_app1 (st_fst st_fixabs))) $
+multi_step (st_pair1 (st_app1 (st_fstpair v_abs v_abs))) $
+multi_step (st_pair1 (st_app2 v_abs st_prdnzr)) $
+multi_step (st_pair1 (st_appabs v_const)) $
+multi_step (st_pair1 (st_tst st_iszronzr)) $
+multi_step (st_pair1 st_tstfls) $
+multi_step (st_pair1 (st_app1 (st_snd st_fixabs))) $
+multi_step (st_pair1 (st_app1 (st_sndpair v_abs v_abs))) $
+multi_step (st_pair1 (st_app2 v_abs st_prdnzr)) $
+multi_step (st_pair1 (st_appabs v_const)) $
+multi_step (st_pair1 (st_tst st_iszrozro)) $
+multi_step (st_pair1 st_tsttru) $
+multi_step (st_pair2 v_const (st_appabs v_const)) $
+multi_step (st_pair2 v_const (st_tst st_iszronzr)) $
+multi_step (st_pair2 v_const st_tstfls) $
+multi_step (st_pair2 v_const (st_app1 (st_snd st_fixabs))) $
+multi_step (st_pair2 v_const (st_app1 (st_sndpair v_abs v_abs))) $
+multi_step (st_pair2 v_const (st_app2 v_abs st_prdnzr)) $
+multi_step (st_pair2 v_const (st_appabs v_const)) $
+multi_step (st_pair2 v_const (st_tst st_iszronzr)) $
+multi_step (st_pair2 v_const st_tstfls) $
+multi_step (st_pair2 v_const (st_app1 (st_fst st_fixabs))) $
+multi_step (st_pair2 v_const (st_app1 (st_fstpair v_abs v_abs))) $
+multi_step (st_pair2 v_const (st_app2 v_abs st_prdnzr)) $
+multi_step (st_pair2 v_const (st_appabs v_const)) $
+multi_step (st_pair2 v_const (st_tst st_iszronzr)) $
+multi_step (st_pair2 v_const st_tstfls) $
+multi_step (st_pair2 v_const (st_app1 (st_snd st_fixabs))) $
+multi_step (st_pair2 v_const (st_app1 (st_sndpair v_abs v_abs))) $
+multi_step (st_pair2 v_const (st_app2 v_abs st_prdnzr)) $
+multi_step (st_pair2 v_const (st_appabs v_const)) $
+multi_step (st_pair2 v_const (st_tst st_iszronzr)) $
+multi_step (st_pair2 v_const st_tstfls) $
+multi_step (st_pair2 v_const (st_app1 (st_fst st_fixabs))) $
+multi_step (st_pair2 v_const (st_app1 (st_fstpair v_abs v_abs))) $
+multi_step (st_pair2 v_const (st_app2 v_abs st_prdnzr)) $
+multi_step (st_pair2 v_const (st_appabs v_const)) $
+multi_step (st_pair2 v_const (st_tst st_iszrozro)) $
+multi_step (st_pair2 v_const st_tsttru) $
+multi_refl
