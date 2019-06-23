@@ -279,16 +279,18 @@ inductive step : tm -> tm -> Prop
 | st_pair1 {t₁ t₁' t₂} : step t₁ t₁' -> step (pair t₁ t₂) (pair t₁' t₂)
 | st_pair2 {t₁ t₂ t₂'} :
     value t₁ -> step t₂ t₂' -> step (pair t₁ t₂) (pair t₁ t₂')
-| st_fstpair {t₁ t₂} : step (fst (pair t₁ t₂)) t₁
+| st_fstpair {t₁ t₂} : value t₁ -> value t₂ -> step (fst (pair t₁ t₂)) t₁
 | st_fst {t t'} : step t t' -> step (fst t) (fst t')
-| st_sndpair {t₁ t₂} : step (snd (pair t₁ t₂)) t₂
+| st_sndpair {t₁ t₂} : value t₁ -> value t₂ -> step (snd (pair t₁ t₂)) t₂
 | st_snd {t t'} : step t t' -> step (snd t) (snd t')
 | st_inl {t t' T} : step t t' -> step (inl T t) (inl T t')
 | st_inr {t t' T} : step t t' -> step (inr T t) (inr T t')
 | st_scase {t t' y t₁ z t₂} :
     step t t' -> step (scase t y t₁ z t₂) (scase t' y t₁ z t₂)
-| st_scaseinl {T t y t₁ z t₂} : step (scase (inl T t) y t₁ z t₂) ([y:=t]t₁)
-| st_scaseinr {T t y t₁ z t₂} : step (scase (inr T t) y t₁ z t₂) ([z:=t]t₂)
+| st_scaseinl {T t y t₁ z t₂} :
+    value t -> step (scase (inl T t) y t₁ z t₂) ([y:=t]t₁)
+| st_scaseinr {T t y t₁ z t₂} :
+    value t -> step (scase (inr T t) y t₁ z t₂) ([z:=t]t₂)
 | st_cons1 {t₁ t₁' t₂} : step t₁ t₁' -> step (cons t₁ t₂) (cons t₁' t₂)
 | st_cons2 {t₁ t₂ t₂'} :
     value t₁ -> step t₂ t₂' -> step (cons t₁ t₂) (cons t₁ t₂')

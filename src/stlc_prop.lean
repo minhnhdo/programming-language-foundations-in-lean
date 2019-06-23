@@ -31,10 +31,18 @@ end
 
 lemma cannonical_forms_pair {t T₁ T₂}
   (ht : has_type context.empty t (ty.prod T₁ T₂)) (v : value t) :
-  ∃t₁ t₂, t = tm.pair t₁ t₂ :=
+  ∃t₁ t₂, value t₁ ∧ value t₂ ∧ t = tm.pair t₁ t₂ :=
 begin
   cases v,
-    case value.v_pair: { existsi _, existsi _, reflexivity },
+    case value.v_pair: _ _ v₁ v₂ {
+      existsi _,
+      existsi _,
+      split,
+      exact v₁,
+      split,
+      exact v₂,
+      reflexivity,
+    },
     repeat { cases ht },
 end
 
@@ -49,11 +57,25 @@ end
 
 lemma cannonical_forms_sum {t T₁ T₂}
   (ht : has_type context.empty t (ty.sum T₁ T₂)) (v : value t) :
-  (∃t₁, t = tm.inl T₂ t₁) ∨ (∃t₂, t = tm.inr T₁ t₂) :=
+  (∃t₁, value t₁ ∧ t = tm.inl T₂ t₁) ∨ (∃t₂, value t₂ ∧ t = tm.inr T₁ t₂) :=
 begin
   cases v,
-    case value.v_inl: { cases ht, left, existsi _, reflexivity },
-    case value.v_inr: { cases ht, right, existsi _, reflexivity },
+    case value.v_inl: _ _ v₁ {
+      cases ht,
+      left,
+      existsi _,
+      split,
+      exact v₁,
+      reflexivity,
+    },
+    case value.v_inr: _ _ v₂ {
+      cases ht,
+      right,
+      existsi _,
+      split,
+      exact v₂,
+      reflexivity,
+    },
     repeat { cases ht },
 end
 
@@ -164,21 +186,21 @@ begin
     case has_type.t_fst: _ _ _ _ ht ih {
       rcases ih h with v | ⟨_, s⟩,
         { rewrite <-h at ht,
-          rcases cannonical_forms_pair ht v with ⟨_, _, h'⟩,
+          rcases cannonical_forms_pair ht v with ⟨_, _, v_h, v_t, h'⟩,
           rewrite h',
           right,
           existsi _,
-          exact step.st_fstpair },
+          exact step.st_fstpair v_h v_t },
         { right, existsi _, exact step.st_fst s },
     },
     case has_type.t_snd: _ _ _ _ ht ih {
       rcases ih h with v | ⟨_, s⟩,
         { rewrite <-h at ht,
-          rcases cannonical_forms_pair ht v with ⟨_, _, h'⟩,
+          rcases cannonical_forms_pair ht v with ⟨_, _, v_h, v_t, h'⟩,
           rewrite h',
           right,
           existsi _,
-          exact step.st_sndpair },
+          exact step.st_sndpair v_h v_t },
         { right, existsi _, exact step.st_snd s },
     },
     case has_type.t_inl: _ _ _ _ ht ih {
@@ -194,9 +216,9 @@ begin
     case has_type.t_scase: _ _ _ _ _ _ _ _ _ ht _ _ ih {
       rcases ih h with v | ⟨_, s⟩,
         { rewrite <-h at ht,
-          rcases cannonical_forms_sum ht v with ⟨_, h_inl⟩ | ⟨_, h_inr⟩,
-            { rewrite h_inl, right, existsi _, exact step.st_scaseinl },
-            { rewrite h_inr, right, existsi _, exact step.st_scaseinr } },
+          rcases cannonical_forms_sum ht v with ⟨_, v', h_inl⟩ | ⟨_, v', h_inr⟩,
+            { rewrite h_inl, right, existsi _, exact step.st_scaseinl v' },
+            { rewrite h_inr, right, existsi _, exact step.st_scaseinr v' } },
         { right, existsi _, exact step.st_scase s },
     },
     case has_type.t_cons: _ _ _ _ _ _ ih₁ ih₂ {
@@ -330,22 +352,22 @@ begin
       intros _ ht,
       cases ht,
       rcases ih ht_a with v | ⟨_, s⟩,
-        { rcases cannonical_forms_pair ht_a v with ⟨_, _, h'⟩,
+        { rcases cannonical_forms_pair ht_a v with ⟨_, _, v_h, v_t, h'⟩,
           rewrite h',
           right,
           existsi _,
-          exact step.st_fstpair },
+          exact step.st_fstpair v_h v_t },
         { right, existsi _, exact step.st_fst s },
     },
     case tm.snd: _ ih {
       intros _ ht,
       cases ht,
       rcases ih ht_a with v | ⟨_, s⟩,
-        { rcases cannonical_forms_pair ht_a v with ⟨_, _, h'⟩,
+        { rcases cannonical_forms_pair ht_a v with ⟨_, _, v_h, v_t, h'⟩,
           rewrite h',
           right,
           existsi _,
-          exact step.st_sndpair },
+          exact step.st_sndpair v_h v_t },
         { right, existsi _, exact step.st_snd s },
     },
     case tm.inl: _ _ ih {
@@ -366,10 +388,10 @@ begin
       intros _ ht,
       cases ht,
       rcases ih ht_a with v | ⟨_, s⟩,
-        { rcases cannonical_forms_sum ht_a v with ⟨_, h_inl⟩ | ⟨_, h_inr⟩,
-            { rewrite h_inl, right, existsi _, exact step.st_scaseinl },
-            { rewrite h_inr, right, existsi _, exact step.st_scaseinr },
-          },
+        { rcases cannonical_forms_sum ht_a v
+            with ⟨_, v', h_inl⟩ | ⟨_, v', h_inr⟩,
+              { rewrite h_inl, right, existsi _, exact step.st_scaseinl v' },
+              { rewrite h_inr, right, existsi _, exact step.st_scaseinr v' } },
         { right, existsi _, exact step.st_scase s },
     },
     case tm.cons: _ _ ih₁ ih₂ {
