@@ -1,5 +1,4 @@
-import .logic
-import .maps
+import .logic .maps
 
 @[derive decidable_eq]
 inductive ty : Type
