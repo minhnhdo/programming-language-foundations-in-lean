@@ -5,11 +5,10 @@ def type_check : context -> tm -> option ty
 | gamma (tm.abs x T t) := do
   T' <- type_check (partial_map.update x T gamma) t,
   return (ty.arrow T T')
-| gamma (tm.app t₁ t₂) :=
-  match type_check gamma t₁, type_check gamma t₂ with
-  | (some (ty.arrow T T')), (some T₂) := if T = T₂ then return T' else failure
-  | _, _ := failure
-  end
+| gamma (tm.app t₁ t₂) := do
+  (ty.arrow T T') <- type_check gamma t₁ | failure,
+  T₂ <- type_check gamma t₂,
+  if T = T₂ then return T' else failure
 | _ (tm.const _) := return ty.nat
 | gamma (tm.prd t) := do
   ty.nat <- type_check gamma t | failure,
