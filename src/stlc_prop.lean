@@ -34,15 +34,7 @@ lemma cannonical_forms_pair {t T₁ T₂}
   ∃t₁ t₂, value t₁ ∧ value t₂ ∧ t = tm.pair t₁ t₂ :=
 begin
   cases v,
-    case value.v_pair: _ _ v₁ v₂ {
-      existsi _,
-      existsi _,
-      split,
-      exact v₁,
-      split,
-      exact v₂,
-      reflexivity,
-    },
+    case value.v_pair: _ _ v₁ v₂ { existsi _, existsi _, exact ⟨v₁, v₂, rfl⟩ },
     repeat { cases ht },
 end
 
@@ -64,17 +56,13 @@ begin
       cases ht,
       left,
       existsi _,
-      split,
-      exact v₁,
-      reflexivity,
+      exact ⟨v₁, rfl⟩,
     },
     case value.v_inr: _ _ v₂ {
       cases ht,
       right,
       existsi _,
-      split,
-      exact v₂,
-      reflexivity,
+      exact ⟨v₂, rfl⟩,
     },
     repeat { cases ht },
 end
@@ -90,11 +78,7 @@ begin
       right,
       existsi _,
       existsi _,
-      split,
-      exact v₁,
-      split,
-      exact v₂,
-      reflexivity,
+      exact ⟨v₁, v₂, rfl⟩,
     },
     repeat { cases ht },
 end
@@ -894,9 +878,8 @@ begin
       intros _ s,
       cases s,
         case step.st_appabs: {
-          rewrite <-h at ht₁,
+          rewrite <-h at ht₁ ht₂,
           cases ht₁,
-          rewrite <-h at ht₂,
           simp [symm h],
           exact substitution_preserves_typing ht₁_a ht₂,
         },
@@ -1002,9 +985,7 @@ begin
         { exact ht₁ },
         { cases ht,
           rewrite <-h,
-          rewrite <-h at ht_a,
-          rewrite <-h at ht_a_1,
-          rewrite <-h at ht₂,
+          rewrite <-h at ht_a ht_a_1 ht₂,
           exact substitution_preserves_typing
                   (substitution_preserves_typing ht₂ ht_a_1)
                   ht_a },
@@ -1015,8 +996,7 @@ begin
         { exact has_type.t_fix (ih h s_a) },
         { cases ht,
           rewrite <-h,
-          rewrite <-h at ht,
-          rewrite <-h at ht_a,
+          rewrite <-h at ht ht_a,
           exact substitution_preserves_typing ht_a (has_type.t_fix ht) },
     },
     repeat { intros _ s, cases s },

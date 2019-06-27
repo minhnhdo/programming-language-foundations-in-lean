@@ -6,7 +6,7 @@ namespace total_map
   def empty {a : Type} (v : a) : total_map a := λx, v
 
   def update {a : Type} (x : string) (v : a) (m : total_map a) : total_map a :=
-  λy, if x = y then v else m y
+  assume y, if x = y then v else m y
 
   def update_eq {a : Type} {x : string} {v : a} {m : total_map a} :
     (update x v m) x = v :=
@@ -14,7 +14,7 @@ namespace total_map
 
   def update_neq {a : Type} {x y : string} {v : a} {m : total_map a} (h : x ≠ y) :
     (update x v m) y = m y :=
-  by {unfold update, simp [h] }
+  by { unfold update, simp [h] }
 
   def update_shadow {a : Type} {x : string} {v₁ v₂ : a} {m : total_map a} :
     update x v₂ (update x v₁ m) = update x v₂ m :=
@@ -42,8 +42,8 @@ namespace total_map
     apply funext,
     intro z,
     by_cases hxz : x = z,
-    { simp [hxz], rewrite symm hxz, simp [ne.symm h] },
-    { simp [hxz], by_cases hyz : y = z; simp [hyz] },
+      { simp [hxz], rewrite symm hxz, simp [ne.symm h] },
+      { simp [hxz], by_cases hyz : y = z; simp [hyz] },
   end
 end total_map
 

@@ -215,15 +215,11 @@ begin
                 rewrite hxy at ih,
                 exact substi.s_scase1 ih },
               { simp [hxy, hxz],
-                rewrite hxy at hxz,
-                rewrite hxy at ih,
-                rewrite hxy at ih₂,
+                rewrite hxy at hxz ih ih₂,
                 exact substi.s_scase3 (ne.symm hxz) ih ih₂ } },
           { by_cases hxz : x = z,
               { simp [hxy, hxz],
-                rewrite hxz at hxy,
-                rewrite hxz at ih,
-                rewrite hxz at ih₁,
+                rewrite hxz at hxy ih ih₁,
                 exact substi.s_scase2 (ne.symm hxy) ih ih₁ },
               { simp [hxy, hxz],
                 exact
@@ -452,7 +448,6 @@ begin
       rewrite h'',
       exact h',
     },
-    /- ty.bool, ty.nat -/
     repeat { cases h },
 end
 
