@@ -1,3 +1,4 @@
+import tactic
 import .stlc
 
 def type_check : context -> tm -> option ty
@@ -72,6 +73,85 @@ def type_check : context -> tm -> option ty
   (ty.arrow T T') <- type_check gamma t | failure,
   if T = T' then return T else failure
 
+theorem type_checking_sound {t} :
+  ∀{gamma T}, type_check gamma t = some T -> has_type gamma t T :=
+begin
+  induction t,
+  repeat { intros _ _ h, simp [type_check, return, pure] at h },
+    case tm.var: { apply has_type.t_var, assumption },
+    case tm.abs: _ _ _ ih {
+      rcases h with ⟨_, h', h''⟩,
+      rewrite <-h'',
+      exact has_type.t_abs (ih h'),
+    },
+    case tm.app: _ _ ih₁ ih₂ {
+      rcases h with ⟨_, h', h''⟩,
+      sorry,
+    },
+    case tm.const: { rewrite <-h, exact has_type.t_const },
+    case tm.prd: _ ih {
+      rcases h with ⟨_, h', h''⟩,
+      sorry,
+    },
+    case tm.scc: _ ih {
+      rcases h with ⟨_, h', h''⟩,
+      sorry,
+    },
+    case tm.mlt: _ _ ih₁ ih₂ {
+      rcases h with ⟨_, h', h''⟩,
+      sorry,
+    },
+    case tm.iszro: _ ih {
+      rcases h with ⟨_, h', h''⟩,
+      sorry,
+    },
+    case tm.tru: { rewrite <-h, exact has_type.t_tru },
+    case tm.fls: { rewrite <-h, exact has_type.t_fls },
+    case tm.tst: _ _ _ ih₁ ih₂ ih₃ {
+      rcases h with ⟨_, h', h''⟩,
+      sorry,
+    },
+    case tm.let_: _ _ _ ih₁ ih₂ {
+      rcases h with ⟨_, h', h''⟩,
+      exact has_type.t_let (ih₁ h') (ih₂ h''),
+    },
+    case tm.pair: _ _ ih₁ ih₂ {
+      rcases h with ⟨_, h', _, h'', h'''⟩,
+      rewrite <-h''',
+      exact has_type.t_pair (ih₁ h') (ih₂ h''),
+    },
+    case tm.fst: _ ih {
+      sorry,
+    },
+    case tm.snd: _ ih {
+      sorry,
+    },
+    case tm.unit: { rewrite <-h, exact has_type.t_unit },
+    case tm.inl: _ _ ih {
+      rcases h with ⟨_, h', h''⟩,
+      rewrite <-h'',
+      exact has_type.t_inl (ih h'),
+    },
+    case tm.inr: _ _ ih {
+      rcases h with ⟨_, h', h''⟩,
+      rewrite <-h'',
+      exact has_type.t_inr (ih h'),
+    },
+    case tm.scase: _ _ _ _ _ ih ih₁ ih₂ {
+      sorry,
+    },
+    case tm.nil: { rewrite <-h, exact has_type.t_nil },
+    case tm.cons: _ _ ih₁ ih₂ {
+      sorry,
+    },
+    case tm.lcase: _ _ _ _ _ _ ih ih₁ ih₂ {
+      sorry,
+    },
+    case tm.fix: _ ih {
+      sorry,
+    },
+end
+
 theorem type_checking_complete {gamma t T} (ht : has_type gamma t T) :
   type_check gamma t = some T :=
-by { induction ht; simp [*, type_check, (>>=), option.bind, return, pure] }
+by { induction ht; simp [*, type_check, return, pure] }
