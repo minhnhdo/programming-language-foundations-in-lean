@@ -1,6 +1,7 @@
 import .logic
 import .maps
 
+@[derive decidable_eq]
 inductive ty : Type
 | bool : ty
 | arrow : ty -> ty -> ty
