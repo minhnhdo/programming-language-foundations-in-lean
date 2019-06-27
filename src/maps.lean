@@ -22,8 +22,7 @@ namespace total_map
     unfold update,
     apply funext,
     intro y,
-    by_cases h : x = y,
-    repeat { simp [h] },
+    by_cases h : x = y; simp [h],
   end
 
   def update_same {a : Type} {x : string} {v : a} {m : total_map a} :
@@ -32,8 +31,7 @@ namespace total_map
     unfold update,
     apply funext,
     intro y,
-    by_cases h : x = y,
-    repeat { simp [h] },
+    by_cases h : x = y; simp [h],
   end
 
   def update_permute {a : Type} {x y : string} {v₁ v₂ : a} {m : total_map a}
