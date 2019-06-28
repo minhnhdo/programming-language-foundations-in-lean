@@ -77,16 +77,26 @@ theorem type_checking_sound {t} :
   ∀{gamma T}, type_check gamma t = some T -> has_type gamma t T :=
 begin
   induction t,
-  repeat { intros _ _ h, simp [type_check, return, pure] at h },
+    repeat { intros _ _ h, simp [type_check, return, pure] at h },
     case tm.var: { apply has_type.t_var, assumption },
     case tm.abs: _ _ _ ih {
       rcases h with ⟨_, h', h''⟩,
       rewrite <-h'',
       exact has_type.t_abs (ih h'),
     },
-    case tm.app: _ _ ih₁ ih₂ {
+    case tm.app: t₁ t₂ ih₁ ih₂ {
       rcases h with ⟨_, h', h''⟩,
-      sorry,
+      cases e₁ : type_check gamma t₁,
+        { cases eq.trans (symm e₁) h', },
+        { cases e₂ : type_check gamma t₂,
+            case option.none: { cases h_w; rewrite e₂ at h''; cases h'' },
+            case option.some: T₁ {
+              cases h_w,
+                case ty.arrow: T₁' T₂ {
+                  sorry,
+                },
+                repeat { cases h'' } },
+            },
     },
     case tm.const: { rewrite <-h, exact has_type.t_const },
     case tm.prd: _ ih {
